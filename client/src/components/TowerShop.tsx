@@ -32,6 +32,12 @@ const TOWER_CATEGORIES = [
   },
 ];
 
+// Hotkey mapping: 1-9 for the first 9 tower types
+const TOWER_HOTKEY_MAP: Record<string, number> = {
+  archer: 1, mage: 2, cannon: 3, frost: 4, lightning: 5, poison: 6, ballista: 7,
+  infantry: 8, hero: 9,
+};
+
 const TARGETING_LABELS: Record<TargetingMode, string> = {
   first: '1st',
   last: 'Last',
@@ -227,6 +233,37 @@ export default function TowerShop({ state, engine }: TowerShopProps) {
         </div>
       )}
 
+      {/* Active Synergies */}
+      {state.activeSynergies && state.activeSynergies.length > 0 && (
+        <div
+          style={{
+            padding: '6px 8px',
+            borderBottom: '1px solid #3d2010',
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ color: '#d97706', fontSize: '9px', marginBottom: '4px', textAlign: 'center', fontFamily: "'Philosopher', serif" }}>
+            ✦ ACTIVE SYNERGIES ✦
+          </div>
+          {state.activeSynergies.map((syn, i) => (
+            <div
+              key={i}
+              style={{
+                fontSize: '8px',
+                color: '#a78bfa',
+                background: 'rgba(109,40,217,0.15)',
+                borderRadius: '3px',
+                padding: '3px 6px',
+                marginBottom: '2px',
+              }}
+            >
+              <span style={{ color: '#c4b5fd', fontWeight: 'bold' }}>{syn.name}:</span>{' '}
+              {syn.description}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Category Tabs */}
       <div
         style={{
@@ -317,6 +354,28 @@ export default function TowerShop({ state, engine }: TowerShopProps) {
                   ✓
                 </div>
               )}
+              {TOWER_HOTKEY_MAP[type] && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    left: '2px',
+                    width: '14px',
+                    height: '14px',
+                    background: 'rgba(0,0,0,0.6)',
+                    borderRadius: '3px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '8px',
+                    color: '#92400e',
+                    fontWeight: 'bold',
+                    zIndex: 1,
+                  }}
+                >
+                  {TOWER_HOTKEY_MAP[type]}
+                </div>
+              )}
 
               <TowerPreviewCanvas type={type} />
 
@@ -344,6 +403,17 @@ export default function TowerShop({ state, engine }: TowerShopProps) {
                   }}
                 >
                   {def.cost}g
+                </div>
+                <div
+                  style={{
+                    fontSize: '8px',
+                    color: '#92400e',
+                    lineHeight: 1.3,
+                    marginBottom: '3px',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  {def.description}
                 </div>
                 <StatBar label="DMG" value={def.damage} max={150} color="#ef4444" />
                 <StatBar label="RNG" value={def.range * 10} max={55} color="#3b82f6" />

@@ -6,14 +6,40 @@
 
 import type { GameEngineState } from './engine';
 import type { Enemy, Tower, Projectile, AlliedUnit } from './types';
+import type { MapId } from './types';
 import { CELL_SIZE, GRID_COLS, GRID_ROWS } from './constants';
+import {
+  getRuinSprite, getRuinDrawSize, preloadMapSprites,
+  getGrassTile, getPathTile,
+  drawEnemySprite,
+  drawArcherTowerSprite, drawArcherTowerPreview,
+  getTreeSprite, getRockSprite,
+  getGrassDecorSprite, getFlowerSprite, getBushSprite,
+  getPlacementSprite,
+  drawSpriteFrame, getFlagSpriteConfig, getCampfireSpriteConfig,
+  getLightningSpriteConfig,
+  updateSpriteAnimations, getAnimTime,
+  loadImage,
+} from './sprites';
 
 // ============================================================
 // MAIN RENDER ENTRY
 // ============================================================
 
+// Track whether sprites have been preloaded for current map
+let lastPreloadedMap: string | null = null;
+
 export function renderGame(ctx: CanvasRenderingContext2D, state: GameEngineState, _dt: number) {
   const { screenShake } = state;
+
+  // Update sprite animation timer
+  updateSpriteAnimations(_dt / 1000);
+
+  // Preload sprites for current map (once per map)
+  if (state.mapId && state.mapId !== lastPreloadedMap) {
+    preloadMapSprites(state.mapId);
+    lastPreloadedMap = state.mapId;
+  }
 
   ctx.save();
   if (screenShake && screenShake.intensity > 0) {
@@ -29,9 +55,11 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameEngineState
   drawTowers(ctx, state.towers, state.selectedTowerId);
   drawProjectiles(ctx, state.projectiles);
   drawParticles(ctx, state.particles);
+  drawAbilityEffects(ctx, state);
   drawFloatingTexts(ctx, state.floatingTexts);
   drawBossBar(ctx, state);
   drawRangeCircle(ctx, state);
+  drawWaveAnnouncement(ctx, state);
 
   ctx.restore();
 }
@@ -50,26 +78,39 @@ function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
       const key = `${col},${row}`;
 
       if (pathCells.has(key)) {
-        const grad = ctx.createLinearGradient(x, y, x, y + CELL_SIZE);
-        grad.addColorStop(0, '#C8A96E');
-        grad.addColorStop(1, '#B8935A');
-        ctx.fillStyle = grad;
-        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-          ctx.beginPath();
-          ctx.moveTo(x + i * 16, y);
-          ctx.lineTo(x + i * 16, y + CELL_SIZE);
-          ctx.stroke();
+        // Try sprite tile first, fallback to procedural
+        const pathTile = getPathTile(col, row);
+        if (pathTile) {
+          ctx.drawImage(pathTile, x, y, CELL_SIZE, CELL_SIZE);
+        } else {
+          const grad = ctx.createLinearGradient(x, y, x, y + CELL_SIZE);
+          grad.addColorStop(0, '#C8A96E');
+          grad.addColorStop(1, '#B8935A');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+          ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+          ctx.lineWidth = 1;
+          for (let i = 0; i < 4; i++) {
+            ctx.beginPath();
+            ctx.moveTo(x + i * 16, y);
+            ctx.lineTo(x + i * 16, y + CELL_SIZE);
+            ctx.stroke();
+          }
         }
       } else if (powerSpots && powerSpots.has(key)) {
-        const grad = ctx.createRadialGradient(x + CELL_SIZE/2, y + CELL_SIZE/2, 5, x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE * 0.7);
-        grad.addColorStop(0, '#5A7A3A');
-        grad.addColorStop(0.5, '#4A6A2A');
-        grad.addColorStop(1, '#3A5A1A');
-        ctx.fillStyle = grad;
-        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        // Power spot: draw grass tile underneath, then overlay glow
+        const grassTile = getGrassTile(col, row);
+        if (grassTile) {
+          ctx.drawImage(grassTile, x, y, CELL_SIZE, CELL_SIZE);
+        } else {
+          const grad = ctx.createRadialGradient(x + CELL_SIZE/2, y + CELL_SIZE/2, 5, x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE * 0.7);
+          grad.addColorStop(0, '#5A7A3A');
+          grad.addColorStop(0.5, '#4A6A2A');
+          grad.addColorStop(1, '#3A5A1A');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        }
+        // Golden power aura overlay
         ctx.save();
         ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 600) * 0.15;
         const starGrad = ctx.createRadialGradient(x + CELL_SIZE/2, y + CELL_SIZE/2, 0, x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE * 0.5);
@@ -78,20 +119,35 @@ function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
         ctx.fillStyle = starGrad;
         ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         ctx.restore();
-        ctx.fillStyle = 'rgba(255,215,0,0.6)';
-        ctx.font = '16px serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('★', x + CELL_SIZE/2, y + CELL_SIZE/2 + 6);
+        // Tower placement indicator sprite
+        const placementSprite = getPlacementSprite(1);
+        if (placementSprite) {
+          ctx.save();
+          ctx.globalAlpha = 0.7;
+          ctx.drawImage(placementSprite, x + 4, y + 4, CELL_SIZE - 8, CELL_SIZE - 8);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = 'rgba(255,215,0,0.6)';
+          ctx.font = '16px serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u2605', x + CELL_SIZE/2, y + CELL_SIZE/2 + 6);
+        }
       } else {
-        const shade = ((col + row) % 2 === 0) ? '#4A7A2A' : '#3A6A1A';
-        ctx.fillStyle = shade;
-        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-        ctx.globalAlpha = 0.3;
-        ctx.fillStyle = '#5A8A3A';
-        ctx.fillRect(x + 2, y + 2, 8, 3);
-        ctx.fillRect(x + 20, y + 35, 6, 3);
-        ctx.fillRect(x + 45, y + 15, 7, 3);
-        ctx.globalAlpha = 1;
+        // Grass cell: try sprite tile, fallback to procedural
+        const grassTile = getGrassTile(col, row);
+        if (grassTile) {
+          ctx.drawImage(grassTile, x, y, CELL_SIZE, CELL_SIZE);
+        } else {
+          const shade = ((col + row) % 2 === 0) ? '#4A7A2A' : '#3A6A1A';
+          ctx.fillStyle = shade;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = '#5A8A3A';
+          ctx.fillRect(x + 2, y + 2, 8, 3);
+          ctx.fillRect(x + 20, y + 35, 6, 3);
+          ctx.fillRect(x + 45, y + 15, 7, 3);
+          ctx.globalAlpha = 1;
+        }
       }
 
       ctx.strokeStyle = 'rgba(0,0,0,0.06)';
@@ -100,7 +156,7 @@ function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
     }
   }
 
-  drawMapDecorations(ctx, pathCells, powerSpots || new Set());
+  drawMapDecorations(ctx, pathCells, powerSpots || new Set(), state.mapId as MapId);
   if (waypoints && waypoints.length > 1) {
     drawPathArrows(ctx, waypoints);
     const [startCol, startRow] = waypoints[0];
@@ -110,26 +166,151 @@ function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
   }
 }
 
-function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string>, powerSpots: Set<string>) {
-  const decorations: Array<[number, number, string]> = [
-    [1, 1, 'tree'], [2, 8, 'tree'], [5, 1, 'tree'], [8, 3, 'rock'],
-    [10, 1, 'tree'], [13, 2, 'mushroom'], [16, 1, 'tree'], [0, 10, 'rock'],
-    [4, 10, 'tree'], [7, 10, 'mushroom'], [12, 11, 'tree'], [16, 10, 'rock'],
-    [1, 4, 'mushroom'], [6, 7, 'rock'], [14, 6, 'tree'], [17, 3, 'mushroom'],
-    [2, 11, 'tree'], [9, 0, 'rock'], [15, 11, 'tree'], [3, 0, 'mushroom'],
-  ];
-  for (const [col, row, type] of decorations) {
+// Decoration definitions: [col, row, type, variant]
+// type: 'ruin'=ruin sprite, 'tree'=tree sprite, 'rock'=rock sprite,
+//       'bush'=bush, 'flower'=flower, 'grass_decor'=grass tuft,
+//       'flag'=animated flag, 'campfire'=animated campfire
+// variant: depends on type (ruin 1-5, tree 1-3, rock 1-5, etc.)
+const DECORATION_PLACEMENTS: Array<[number, number, string, number]> = [
+  // Large ruins (variant 1) — impressive corner pieces
+  [1, 1, 'ruin', 1],
+  [15, 11, 'ruin', 1],
+  // Medium ruins (variant 2) — wall segments, fences
+  [2, 8, 'ruin', 2],
+  [16, 1, 'ruin', 2],
+  [12, 11, 'ruin', 2],
+  // Small-medium ruins (variant 3) — broken pillars
+  [5, 1, 'ruin', 3],
+  [4, 10, 'ruin', 3],
+  [14, 6, 'ruin', 3],
+  [9, 0, 'ruin', 3],
+  // Small rubble (variant 4) — scattered debris
+  [10, 1, 'ruin', 4],
+  [0, 10, 'ruin', 4],
+  [17, 3, 'ruin', 4],
+  [3, 0, 'ruin', 4],
+  // Trees — now using sprite assets
+  [8, 3, 'tree', 1],
+  [16, 10, 'tree', 2],
+  [0, 0, 'tree', 3],
+  [17, 11, 'tree', 1],
+  [6, 0, 'tree', 2],
+  [11, 11, 'tree', 3],
+  // Rocks — scattered around the map
+  [13, 2, 'rock', 1],
+  [7, 10, 'rock', 2],
+  [1, 4, 'rock', 3],
+  [2, 11, 'rock', 4],
+  [6, 7, 'rock', 5],
+  // Bushes
+  [14, 0, 'bush', 1],
+  [3, 11, 'bush', 3],
+  [17, 5, 'bush', 5],
+  // Flowers
+  [10, 0, 'flower', 2],
+  [0, 6, 'flower', 5],
+  [15, 9, 'flower', 8],
+  // Grass tufts
+  [12, 1, 'grass_decor', 1],
+  [5, 11, 'grass_decor', 3],
+  [16, 7, 'grass_decor', 5],
+  // Animated: flags near ruins
+  [1, 2, 'flag', 1],
+  [15, 10, 'flag', 3],
+  // Animated: campfire
+  [9, 11, 'campfire', 1],
+];
+
+function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string>, powerSpots: Set<string>, mapId: MapId) {
+  const animTime = getAnimTime();
+
+  for (const [col, row, type, variant] of DECORATION_PLACEMENTS) {
     const key = `${col},${row}`;
     if (pathCells.has(key) || powerSpots.has(key)) continue;
     const x = col * CELL_SIZE + CELL_SIZE / 2;
     const y = row * CELL_SIZE + CELL_SIZE / 2;
-    if (type === 'tree') drawTree(ctx, x, y);
-    else if (type === 'rock') drawRock(ctx, x, y);
-    else drawMushroom(ctx, x, y);
+    const cellX = col * CELL_SIZE;
+    const cellY = row * CELL_SIZE;
+
+    if (type === 'ruin') {
+      const sprite = getRuinSprite(mapId, variant);
+      if (sprite) {
+        const drawSize = getRuinDrawSize(variant, CELL_SIZE);
+        ctx.save();
+        const dx = x - drawSize.w / 2;
+        const dy = y + CELL_SIZE / 2 - drawSize.h;
+        ctx.drawImage(sprite, dx, dy, drawSize.w, drawSize.h);
+        ctx.restore();
+      } else {
+        if (variant <= 2) drawRockProcedural(ctx, x, y);
+        else if (variant <= 4) drawMushroom(ctx, x, y);
+        else drawRockProcedural(ctx, x, y);
+      }
+    } else if (type === 'tree') {
+      const treeSprite = getTreeSprite(variant);
+      if (treeSprite) {
+        // Trees are taller than a cell — scale to ~1.5 cells wide, maintain aspect
+        const tw = CELL_SIZE * 1.4;
+        const aspect = treeSprite.naturalHeight / treeSprite.naturalWidth;
+        const th = tw * aspect;
+        ctx.drawImage(treeSprite, x - tw / 2, cellY + CELL_SIZE - th, tw, th);
+      } else {
+        drawTreeProcedural(ctx, x, y);
+      }
+    } else if (type === 'rock') {
+      // variant 1-5 picks a rock type, size is medium (2-3)
+      const rockType = ((variant - 1) % 5) + 1;
+      const rockSize = variant <= 2 ? 1 : variant <= 4 ? 2 : 3;
+      const rockSprite = getRockSprite(rockType, rockSize);
+      if (rockSprite) {
+        const rw = CELL_SIZE * (rockSize === 1 ? 1.0 : rockSize === 2 ? 0.8 : 0.6);
+        const aspect = rockSprite.naturalHeight / rockSprite.naturalWidth;
+        const rh = rw * aspect;
+        ctx.drawImage(rockSprite, x - rw / 2, cellY + CELL_SIZE - rh, rw, rh);
+      } else {
+        drawRockProcedural(ctx, x, y);
+      }
+    } else if (type === 'bush') {
+      const bushSprite = getBushSprite(variant);
+      if (bushSprite) {
+        const bw = CELL_SIZE * 0.7;
+        const aspect = bushSprite.naturalHeight / bushSprite.naturalWidth;
+        const bh = bw * aspect;
+        ctx.drawImage(bushSprite, x - bw / 2, cellY + CELL_SIZE - bh, bw, bh);
+      }
+    } else if (type === 'flower') {
+      const flowerSprite = getFlowerSprite(variant);
+      if (flowerSprite) {
+        const fw = CELL_SIZE * 0.5;
+        const aspect = flowerSprite.naturalHeight / flowerSprite.naturalWidth;
+        const fh = fw * aspect;
+        ctx.drawImage(flowerSprite, x - fw / 2, cellY + CELL_SIZE - fh, fw, fh);
+      }
+    } else if (type === 'grass_decor') {
+      const grassSprite = getGrassDecorSprite(variant);
+      if (grassSprite) {
+        const gw = CELL_SIZE * 0.6;
+        const aspect = grassSprite.naturalHeight / grassSprite.naturalWidth;
+        const gh = gw * aspect;
+        ctx.drawImage(grassSprite, x - gw / 2, cellY + CELL_SIZE - gh, gw, gh);
+      }
+    } else if (type === 'flag') {
+      const config = getFlagSpriteConfig(variant);
+      const frameIndex = Math.floor(animTime * 4) % config.frameCount;
+      const fw = CELL_SIZE * 0.9;
+      const fh = CELL_SIZE * 0.9;
+      drawSpriteFrame(ctx, config, frameIndex, x - fw / 2, cellY + CELL_SIZE - fh, fw, fh);
+    } else if (type === 'campfire') {
+      const config = getCampfireSpriteConfig(variant);
+      const frameIndex = Math.floor(animTime * 6) % config.frameCount;
+      const cw = CELL_SIZE * 0.7;
+      const ch = CELL_SIZE * 0.7;
+      drawSpriteFrame(ctx, config, frameIndex, x - cw / 2, cellY + CELL_SIZE - ch, cw, ch);
+    }
   }
 }
 
-function drawTree(ctx: CanvasRenderingContext2D, x: number, y: number) {
+function drawTreeProcedural(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.fillStyle = '#5D4037';
   ctx.fillRect(x - 4, y + 4, 8, 14);
   ctx.fillStyle = '#2E7D32';
@@ -140,7 +321,7 @@ function drawTree(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.beginPath(); ctx.moveTo(x, y - 32); ctx.lineTo(x - 8, y - 14); ctx.lineTo(x + 8, y - 14); ctx.closePath(); ctx.fill();
 }
 
-function drawRock(ctx: CanvasRenderingContext2D, x: number, y: number) {
+function drawRockProcedural(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.fillStyle = '#78909C';
   ctx.beginPath(); ctx.ellipse(x, y + 4, 14, 10, 0, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#90A4AE';
@@ -236,7 +417,14 @@ function drawTower(ctx: CanvasRenderingContext2D, tower: Tower, selected: boolea
   }
 
   switch (tower.type) {
-    case 'archer':      drawArcherTower(ctx, x, y, tower.level, anim); break;
+    case 'archer': {
+      // Try sprite first, fallback to procedural
+      const animTime = getAnimTime();
+      if (!drawArcherTowerSprite(ctx, x, y, tower.level, animTime, CELL_SIZE)) {
+        drawArcherTower(ctx, x, y, tower.level, anim);
+      }
+      break;
+    }
     case 'mage':        drawMageTower(ctx, x, y, tower.level, anim); break;
     case 'cannon':      drawCannonTower(ctx, x, y, tower.level, anim); break;
     case 'frost':       drawFrostTower(ctx, x, y, tower.level, anim); break;
@@ -649,11 +837,6 @@ function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy) {
   ctx.save();
   ctx.globalAlpha = alpha;
 
-  if (facingLeft) {
-    ctx.scale(-1, 1);
-    ctx.translate(-x * 2, 0);
-  }
-
   if (frozen) {
     ctx.save();
     ctx.globalAlpha = 0.5;
@@ -662,23 +845,39 @@ function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy) {
     ctx.restore();
   }
 
-  switch (enemy.type) {
-    case 'goblin':       drawGoblin(ctx, x, y, size, walkCycle || 0); break;
-    case 'imp':          drawImp(ctx, x, y, size, walkCycle || 0); break;
-    case 'skeleton':     drawSkeleton(ctx, x, y, size, walkCycle || 0); break;
-    case 'werewolf':     drawWerewolf(ctx, x, y, size, walkCycle || 0); break;
-    case 'orc':          drawOrc(ctx, x, y, size, walkCycle || 0); break;
-    case 'golem':        drawGolemEnemy(ctx, x, y, size, walkCycle || 0); break;
-    case 'troll':        drawTroll(ctx, x, y, size, walkCycle || 0); break;
-    case 'banshee':      drawBanshee(ctx, x, y, size, walkCycle || 0); break;
-    case 'darkKnight':   drawDarkKnight(ctx, x, y, size, walkCycle || 0); break;
-    case 'dragon':       drawDragon(ctx, x, y, size, walkCycle || 0); break;
-    case 'armored':      drawArmored(ctx, x, y, size, walkCycle || 0); break;
-    case 'healer':       drawHealer(ctx, x, y, size, walkCycle || 0); break;
-    case 'tunneler':     drawTunneler(ctx, x, y, size, walkCycle || 0); break;
-    case 'flyer':        drawFlyer(ctx, x, y, size, walkCycle || 0); break;
-    case 'splitterBoss': drawSplitterBoss(ctx, x, y, size, walkCycle || 0); break;
-    default:             drawGenericEnemy(ctx, x, y, size, enemy.color); break;
+  // Try sprite-based drawing first
+  const deathProgress = dying ? Math.max(0, 1 - (dyingTimer || 0) / 300) : 0;
+  const spriteDrawn = drawEnemySprite(
+    ctx, enemy.type, x, y, size,
+    dying ? deathProgress : (walkCycle || 0),
+    dying, facingLeft
+  );
+
+  if (!spriteDrawn) {
+    // Fallback to procedural drawing
+    if (facingLeft) {
+      ctx.scale(-1, 1);
+      ctx.translate(-x * 2, 0);
+    }
+
+    switch (enemy.type) {
+      case 'goblin':       drawGoblin(ctx, x, y, size, walkCycle || 0); break;
+      case 'imp':          drawImp(ctx, x, y, size, walkCycle || 0); break;
+      case 'skeleton':     drawSkeleton(ctx, x, y, size, walkCycle || 0); break;
+      case 'werewolf':     drawWerewolf(ctx, x, y, size, walkCycle || 0); break;
+      case 'orc':          drawOrc(ctx, x, y, size, walkCycle || 0); break;
+      case 'golem':        drawGolemEnemy(ctx, x, y, size, walkCycle || 0); break;
+      case 'troll':        drawTroll(ctx, x, y, size, walkCycle || 0); break;
+      case 'banshee':      drawBanshee(ctx, x, y, size, walkCycle || 0); break;
+      case 'darkKnight':   drawDarkKnight(ctx, x, y, size, walkCycle || 0); break;
+      case 'dragon':       drawDragon(ctx, x, y, size, walkCycle || 0); break;
+      case 'armored':      drawArmored(ctx, x, y, size, walkCycle || 0); break;
+      case 'healer':       drawHealer(ctx, x, y, size, walkCycle || 0); break;
+      case 'tunneler':     drawTunneler(ctx, x, y, size, walkCycle || 0); break;
+      case 'flyer':        drawFlyer(ctx, x, y, size, walkCycle || 0); break;
+      case 'splitterBoss': drawSplitterBoss(ctx, x, y, size, walkCycle || 0); break;
+      default:             drawGenericEnemy(ctx, x, y, size, enemy.color); break;
+    }
   }
 
   ctx.restore();
@@ -1259,12 +1458,18 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: Projectile[
     ctx.rotate(angle);
 
     switch (proj.type) {
-      case 'arrow':
-        ctx.strokeStyle = '#8D6E63'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
-        ctx.fillStyle = '#CFD8DC';
-        ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(4, -3); ctx.lineTo(4, 3); ctx.closePath(); ctx.fill();
+      case 'arrow': {
+        const arrowImg = loadImage('/sprites/towers/archer/arrow/1.png');
+        if (arrowImg) {
+          ctx.drawImage(arrowImg, -8, -4, 16, 8);
+        } else {
+          ctx.strokeStyle = '#8D6E63'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
+          ctx.fillStyle = '#CFD8DC';
+          ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(4, -3); ctx.lineTo(4, 3); ctx.closePath(); ctx.fill();
+        }
         break;
+      }
       case 'fireball': {
         const fg = ctx.createRadialGradient(0, 0, 0, 0, 0, proj.size);
         fg.addColorStop(0, '#FFEB3B');
@@ -1365,6 +1570,37 @@ function drawFloatingTexts(ctx: CanvasRenderingContext2D, texts: Array<{ x: numb
 }
 
 // ============================================================
+// ABILITY EFFECTS (sprite-based overlays)
+// ============================================================
+
+function drawAbilityEffects(ctx: CanvasRenderingContext2D, state: GameEngineState) {
+  const abilities = state.abilities;
+  if (!abilities) return;
+
+  const animTime = getAnimTime();
+
+  // Lightning Storm: draw lightning strike sprites on random positions
+  const lightningAbility = abilities.find((a: { type: string; active: boolean }) => a.type === 'lightningStorm' && a.active);
+  if (lightningAbility) {
+    const config = getLightningSpriteConfig(1 + (Math.floor(animTime * 3) % 4));
+    const frameIndex = Math.floor(animTime * 8) % config.frameCount;
+    // Draw multiple lightning strikes across the battlefield
+    for (let i = 0; i < 5; i++) {
+      // Use time-based pseudo-random positions (deterministic per frame for consistent look)
+      const seed = Math.sin(animTime * 7 + i * 123.456) * 0.5 + 0.5;
+      const seed2 = Math.sin(animTime * 11 + i * 789.012) * 0.5 + 0.5;
+      const lx = seed * GRID_COLS * CELL_SIZE;
+      const ly = seed2 * GRID_ROWS * CELL_SIZE;
+      const lSize = CELL_SIZE * 2.5;
+      ctx.save();
+      ctx.globalAlpha = 0.7 + Math.sin(animTime * 20 + i) * 0.3;
+      drawSpriteFrame(ctx, config, frameIndex, lx - lSize / 2, ly - lSize, lSize, lSize);
+      ctx.restore();
+    }
+  }
+}
+
+// ============================================================
 // BOSS HP BAR
 // ============================================================
 
@@ -1429,6 +1665,90 @@ function drawRangeCircle(ctx: CanvasRenderingContext2D, state: GameEngineState) 
 }
 
 // ============================================================
+// WAVE ANNOUNCEMENT BANNER
+// ============================================================
+
+function drawWaveAnnouncement(ctx: CanvasRenderingContext2D, state: GameEngineState) {
+  const ann = state.waveAnnouncement;
+  if (!ann || ann.timer <= 0) return;
+
+  const progress = ann.timer / ann.maxTimer; // 1.0 → 0.0
+  const canvasW = GRID_COLS * CELL_SIZE;
+  const canvasH = GRID_ROWS * CELL_SIZE;
+
+  // Slide in from top, hold, then fade out
+  let alpha = 1;
+  let yOffset = 0;
+  if (progress > 0.85) {
+    // Slide in phase (first 15%)
+    const t = (1 - progress) / 0.15;
+    yOffset = -40 * (1 - t);
+    alpha = t;
+  } else if (progress < 0.2) {
+    // Fade out phase (last 20%)
+    alpha = progress / 0.2;
+  }
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // Dark banner background
+  const bannerY = canvasH * 0.35 + yOffset;
+  const bannerH = 60;
+  const grad = ctx.createLinearGradient(0, bannerY, 0, bannerY + bannerH);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(0.2, 'rgba(0,0,0,0.7)');
+  grad.addColorStop(0.8, 'rgba(0,0,0,0.7)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, bannerY, canvasW, bannerH);
+
+  // Gold accent lines
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = alpha * 0.6;
+  ctx.beginPath();
+  ctx.moveTo(canvasW * 0.15, bannerY + 8);
+  ctx.lineTo(canvasW * 0.85, bannerY + 8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(canvasW * 0.15, bannerY + bannerH - 8);
+  ctx.lineTo(canvasW * 0.85, bannerY + bannerH - 8);
+  ctx.stroke();
+
+  // Main text
+  ctx.globalAlpha = alpha;
+  const isBoss = ann.text.includes('BOSS');
+  const scale = 1 + Math.sin(Date.now() / 200) * (isBoss ? 0.05 : 0.02);
+
+  ctx.save();
+  ctx.translate(canvasW / 2, bannerY + bannerH / 2);
+  ctx.scale(scale, scale);
+
+  ctx.font = `bold ${isBoss ? 28 : 24}px 'Uncial Antiqua', serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Text shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillText(ann.text, 2, 2);
+
+  // Main text color
+  ctx.fillStyle = isBoss ? '#FF6B6B' : '#FFD700';
+  ctx.fillText(ann.text, 0, 0);
+
+  if (isBoss) {
+    // Red glow for boss
+    ctx.shadowColor = '#FF0000';
+    ctx.shadowBlur = 20;
+    ctx.fillText(ann.text, 0, 0);
+  }
+
+  ctx.restore();
+  ctx.restore();
+}
+
+// ============================================================
 // TOWER PREVIEW (for sidebar mini-canvas)
 // ============================================================
 
@@ -1438,7 +1758,12 @@ export function renderTowerPreview(ctx: CanvasRenderingContext2D, type: string, 
   ctx.scale(size / 80, size / 80);
   const sx = 40, sy = 44;
   switch (type) {
-    case 'archer':      drawArcherTower(ctx, sx, sy, 1, 0); break;
+    case 'archer': {
+      if (!drawArcherTowerPreview(ctx, sx, sy, 70)) {
+        drawArcherTower(ctx, sx, sy, 1, 0);
+      }
+      break;
+    }
     case 'mage':        drawMageTower(ctx, sx, sy, 1, 0); break;
     case 'cannon':      drawCannonTower(ctx, sx, sy, 1, 0); break;
     case 'frost':       drawFrostTower(ctx, sx, sy, 1, 0); break;

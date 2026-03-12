@@ -12,6 +12,9 @@ interface GameOverlayProps {
   state: GameEngineState;
   onStart: () => void;
   onRestart: () => void;
+  onReturnToMenu: () => void;
+  onResume: () => void;
+  onOpenSettings?: () => void;
 }
 
 interface HighScore {
@@ -32,25 +35,25 @@ function saveHighScore(score: HighScore) {
   } catch { /* ignore */ }
 }
 
-export default function GameOverlay({ state, onStart, onRestart }: GameOverlayProps) {
+export default function GameOverlay({ state, onStart, onRestart, onReturnToMenu, onResume, onOpenSettings }: GameOverlayProps) {
   const { gameState } = state;
 
   return (
     <AnimatePresence>
       {gameState === 'victory' && (
-        <VictoryScreen key="victory" state={state} onRestart={onRestart} />
+        <VictoryScreen key="victory" state={state} onRestart={onRestart} onReturnToMenu={onReturnToMenu} />
       )}
       {gameState === 'defeat' && (
-        <DefeatScreen key="defeat" state={state} onRestart={onRestart} />
+        <DefeatScreen key="defeat" state={state} onRestart={onRestart} onReturnToMenu={onReturnToMenu} />
       )}
       {gameState === 'paused' && (
-        <PauseScreen key="paused" />
+        <PauseScreen key="paused" onResume={onResume} onReturnToMenu={onReturnToMenu} onOpenSettings={onOpenSettings} />
       )}
     </AnimatePresence>
   );
 }
 
-function VictoryScreen({ state, onRestart }: { state: GameEngineState; onRestart: () => void }) {
+function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineState; onRestart: () => void; onReturnToMenu: () => void }) {
   const { stats, mapId, difficulty } = state;
   const [name, setName] = useState('');
   const [saved, setSaved] = useState(false);
@@ -168,31 +171,51 @@ function VictoryScreen({ state, onRestart }: { state: GameEngineState; onRestart
           </div>
         )}
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onRestart}
-          style={{
-            padding: '12px 36px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: '#fde68a',
-            borderRadius: '10px',
-            border: '2px solid #fbbf24',
-            background: 'linear-gradient(135deg, #78350f, #b45309)',
-            cursor: 'pointer',
-            fontFamily: "'Uncial Antiqua', serif",
-            boxShadow: '0 0 20px rgba(251,191,36,0.3)',
-          }}
-        >
-          ⚔ Play Again
-        </motion.button>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onRestart}
+            style={{
+              padding: '12px 36px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: '#fde68a',
+              borderRadius: '10px',
+              border: '2px solid #fbbf24',
+              background: 'linear-gradient(135deg, #78350f, #b45309)',
+              cursor: 'pointer',
+              fontFamily: "'Uncial Antiqua', serif",
+              boxShadow: '0 0 20px rgba(251,191,36,0.3)',
+            }}
+          >
+            ⚔ Play Again
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onReturnToMenu}
+            style={{
+              padding: '12px 28px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#d97706',
+              borderRadius: '10px',
+              border: '2px solid #78350f',
+              background: 'rgba(45,26,8,0.8)',
+              cursor: 'pointer',
+              fontFamily: "'Philosopher', serif",
+            }}
+          >
+            Return to Menu
+          </motion.button>
+        </div>
       </motion.div>
     </motion.div>
   );
 }
 
-function DefeatScreen({ state, onRestart }: { state: GameEngineState; onRestart: () => void }) {
+function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineState; onRestart: () => void; onReturnToMenu: () => void }) {
   const { stats, mapId, difficulty } = state;
   const [name, setName] = useState('');
   const [saved, setSaved] = useState(false);
@@ -310,31 +333,51 @@ function DefeatScreen({ state, onRestart }: { state: GameEngineState; onRestart:
           </div>
         )}
 
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onRestart}
-          style={{
-            padding: '12px 36px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: '#fca5a5',
-            borderRadius: '10px',
-            border: '2px solid #ef4444',
-            background: 'linear-gradient(135deg, #7f1d1d, #450a0a)',
-            cursor: 'pointer',
-            fontFamily: "'Uncial Antiqua', serif",
-            boxShadow: '0 0 20px rgba(239,68,68,0.3)',
-          }}
-        >
-          🔄 Try Again
-        </motion.button>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onRestart}
+            style={{
+              padding: '12px 36px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: '#fca5a5',
+              borderRadius: '10px',
+              border: '2px solid #ef4444',
+              background: 'linear-gradient(135deg, #7f1d1d, #450a0a)',
+              cursor: 'pointer',
+              fontFamily: "'Uncial Antiqua', serif",
+              boxShadow: '0 0 20px rgba(239,68,68,0.3)',
+            }}
+          >
+            🔄 Try Again
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onReturnToMenu}
+            style={{
+              padding: '12px 28px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#d97706',
+              borderRadius: '10px',
+              border: '2px solid #78350f',
+              background: 'rgba(45,26,8,0.8)',
+              cursor: 'pointer',
+              fontFamily: "'Philosopher', serif",
+            }}
+          >
+            Return to Menu
+          </motion.button>
+        </div>
       </motion.div>
     </motion.div>
   );
 }
 
-function PauseScreen() {
+function PauseScreen({ onResume, onReturnToMenu, onOpenSettings }: { onResume: () => void; onReturnToMenu: () => void; onOpenSettings?: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -347,32 +390,107 @@ function PauseScreen() {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 20,
-        background: 'rgba(0,0,0,0.55)',
-        pointerEvents: 'none',
+        background: 'rgba(0,0,0,0.65)',
       }}
     >
-      <div
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', duration: 0.4 }}
         style={{
-          fontFamily: "'Uncial Antiqua', serif",
-          fontSize: '36px',
-          fontWeight: 'bold',
-          color: '#fde68a',
           textAlign: 'center',
-          textShadow: '0 2px 20px rgba(0,0,0,0.8)',
+          background: 'rgba(13,7,2,0.95)',
+          border: '2px solid #78350f',
+          borderRadius: '16px',
+          padding: '32px 48px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         }}
       >
-        ⏸ Paused
         <div
           style={{
-            fontSize: '14px',
-            color: '#d97706',
-            marginTop: '8px',
+            fontFamily: "'Uncial Antiqua', serif",
+            fontSize: '36px',
+            fontWeight: 'bold',
+            color: '#fde68a',
+            textShadow: '0 2px 20px rgba(0,0,0,0.8)',
+            marginBottom: '20px',
+          }}
+        >
+          ⏸ Paused
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '200px' }}>
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onResume}
+            style={{
+              padding: '10px 24px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#86efac',
+              borderRadius: '8px',
+              border: '2px solid #22c55e',
+              background: 'linear-gradient(135deg, #166534, #15803d)',
+              cursor: 'pointer',
+              fontFamily: "'Philosopher', serif",
+            }}
+          >
+            ▶ Resume
+          </motion.button>
+
+          {onOpenSettings && (
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onOpenSettings}
+              style={{
+                padding: '10px 24px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: '#fde68a',
+                borderRadius: '8px',
+                border: '2px solid #78350f',
+                background: 'rgba(45,26,8,0.8)',
+                cursor: 'pointer',
+                fontFamily: "'Philosopher', serif",
+              }}
+            >
+              ⚙ Settings
+            </motion.button>
+          )}
+
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onReturnToMenu}
+            style={{
+              padding: '10px 24px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#fca5a5',
+              borderRadius: '8px',
+              border: '2px solid #991b1b',
+              background: 'rgba(127,29,29,0.6)',
+              cursor: 'pointer',
+              fontFamily: "'Philosopher', serif",
+            }}
+          >
+            ✕ Quit to Menu
+          </motion.button>
+        </div>
+
+        <div
+          style={{
+            fontSize: '11px',
+            color: '#78350f',
+            marginTop: '16px',
             fontFamily: "'Philosopher', serif",
           }}
         >
-          Press P or click Resume to continue
+          Press P or Space to resume
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

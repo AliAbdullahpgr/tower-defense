@@ -224,3 +224,205 @@ Object.keys(SFX).forEach(key => {
     };
   }
 });
+
+// ============================================================
+// PROCEDURAL AMBIENT MUSIC SYSTEM
+// Uses Web Audio API oscillators — no external files
+// ============================================================
+
+class AmbientMusic {
+  private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private isPlaying = false;
+  private timeouts: number[] = [];
+  private oscillators: OscillatorNode[] = [];
+  private intervalId: number | null = null;
+  private _volume = 0.3;
+
+  get volume() { return this._volume; }
+  set volume(v: number) {
+    this._volume = Math.max(0, Math.min(1, v));
+    if (this.masterGain) {
+      this.masterGain.gain.setTargetAtTime(this._volume * 0.15, this.ctx!.currentTime, 0.1);
+    }
+  }
+
+  start() {
+    if (this.isPlaying) return;
+    try {
+      this.ctx = getCtx();
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.value = this._volume * 0.15;
+      this.masterGain.connect(this.ctx.destination);
+
+      this.isPlaying = true;
+      this.playLoop();
+    } catch { /* ignore */ }
+  }
+
+  stop() {
+    this.isPlaying = false;
+    this.timeouts.forEach(t => clearTimeout(t));
+    this.timeouts = [];
+    if (this.intervalId !== null) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.oscillators.forEach(o => {
+      try { o.stop(); } catch { /* ignore */ }
+    });
+    this.oscillators = [];
+    if (this.masterGain) {
+      try { this.masterGain.disconnect(); } catch { /* ignore */ }
+      this.masterGain = null;
+    }
+  }
+
+  private playLoop() {
+    if (!this.isPlaying || !this.ctx || !this.masterGain) return;
+
+    // Fantasy chord progressions in minor key
+    const chords = [
+      [130.81, 155.56, 196.00], // Cm
+      [116.54, 146.83, 174.61], // Bb
+      [103.83, 130.81, 155.56], // Ab
+      [116.54, 138.59, 174.61], // Bb (sus)
+      [130.81, 164.81, 196.00], // C major (resolution)
+      [110.00, 130.81, 164.81], // Am
+      [98.00,  123.47, 146.83], // G
+      [116.54, 146.83, 174.61], // Bb
+    ];
+
+    let chordIndex = 0;
+
+    const playChord = () => {
+      if (!this.isPlaying || !this.ctx || !this.masterGain) return;
+
+      const chord = chords[chordIndex % chords.length];
+      chordIndex++;
+
+      // Pad sound — long sustained tones
+      for (const freq of chord) {
+        this.playPadNote(freq, 4.0);
+        // Add octave doubling softly
+        this.playPadNote(freq * 2, 4.0, 0.4);
+      }
+
+      // Occasional melody note
+      if (Math.random() > 0.4) {
+        const melodyDelay = Math.random() * 2000;
+        const t = setTimeout(() => {
+          if (!this.isPlaying) return;
+          const melodyNotes = [261.63, 293.66, 311.13, 349.23, 392.00, 440.00, 523.25];
+          const note = melodyNotes[Math.floor(Math.random() * melodyNotes.length)];
+          this.playMelodyNote(note, 1.5 + Math.random());
+        }, melodyDelay);
+        this.timeouts.push(t as unknown as number);
+      }
+
+      // Low drone
+      if (chordIndex % 4 === 1) {
+        this.playDrone(chord[0] / 2, 8.0);
+      }
+    };
+
+    playChord();
+    this.intervalId = setInterval(playChord, 4000) as unknown as number;
+  }
+
+  private playPadNote(freq: number, duration: number, volMult = 1.0) {
+    if (!this.ctx || !this.masterGain) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      // Slight detuning for warmth
+      osc.detune.value = (Math.random() - 0.5) * 10;
+
+      filter.type = 'lowpass';
+      filter.frequency.value = 800;
+      filter.Q.value = 0.5;
+
+      const vol = 0.6 * volMult;
+      gain.gain.setValueAtTime(0, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.8);
+      gain.gain.setValueAtTime(vol, this.ctx.currentTime + duration - 1.0);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(this.ctx.currentTime);
+      osc.stop(this.ctx.currentTime + duration + 0.1);
+      this.oscillators.push(osc);
+
+      osc.onended = () => {
+        const idx = this.oscillators.indexOf(osc);
+        if (idx >= 0) this.oscillators.splice(idx, 1);
+      };
+    } catch { /* ignore */ }
+  }
+
+  private playMelodyNote(freq: number, duration: number) {
+    if (!this.ctx || !this.masterGain) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+
+      gain.gain.setValueAtTime(0, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.35, this.ctx.currentTime + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(this.ctx.currentTime);
+      osc.stop(this.ctx.currentTime + duration + 0.1);
+      this.oscillators.push(osc);
+
+      osc.onended = () => {
+        const idx = this.oscillators.indexOf(osc);
+        if (idx >= 0) this.oscillators.splice(idx, 1);
+      };
+    } catch { /* ignore */ }
+  }
+
+  private playDrone(freq: number, duration: number) {
+    if (!this.ctx || !this.masterGain) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+
+      gain.gain.setValueAtTime(0, this.ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.5, this.ctx.currentTime + 2.0);
+      gain.gain.setValueAtTime(0.5, this.ctx.currentTime + duration - 2.0);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(this.ctx.currentTime);
+      osc.stop(this.ctx.currentTime + duration + 0.1);
+      this.oscillators.push(osc);
+
+      osc.onended = () => {
+        const idx = this.oscillators.indexOf(osc);
+        if (idx >= 0) this.oscillators.splice(idx, 1);
+      };
+    } catch { /* ignore */ }
+  }
+}
+
+export const Music = new AmbientMusic();

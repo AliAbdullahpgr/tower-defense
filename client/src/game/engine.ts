@@ -44,6 +44,8 @@ export interface GameEngineState {
   bossMaxHp: number;
   bossActive: boolean;
   nextWavePreview: Array<{ type: EnemyType; count: number }>;
+  waveAnnouncement: { text: string; timer: number; maxTimer: number } | null;
+  activeSynergies: Array<{ name: string; description: string }>;
 }
 
 function createAbilities(): ActiveAbility[] {
@@ -104,8 +106,34 @@ function createInitialState(mapId: MapId = 'serpentine', difficulty: Difficulty 
     bossMaxHp: 0,
     bossActive: false,
     nextWavePreview: [],
+    waveAnnouncement: null,
+    activeSynergies: [],
   };
 }
+
+// ============================================================
+// TOWER SYNERGY SYSTEM
+// ============================================================
+
+interface TowerSynergy {
+  towers: [TowerType, TowerType];
+  name: string;
+  description: string;
+  effect: 'damageMult' | 'slowEnhance' | 'splashBoost' | 'chainBoost';
+  value: number; // multiplier for damage, etc.
+  range: number; // proximity range in cells
+}
+
+const TOWER_SYNERGIES: TowerSynergy[] = [
+  { towers: ['frost', 'ballista'], name: 'Shatter', description: 'Frozen enemies take 2x pierce damage', effect: 'damageMult', value: 2.0, range: 4 },
+  { towers: ['frost', 'cannon'], name: 'Ice Blast', description: 'Frozen enemies take 1.5x splash damage', effect: 'damageMult', value: 1.5, range: 4 },
+  { towers: ['lightning', 'tesla'], name: 'Overcharge', description: 'Chain lightning jumps to 3 extra targets', effect: 'chainBoost', value: 3, range: 3 },
+  { towers: ['poison', 'mage'], name: 'Toxic Fire', description: 'Poisoned enemies take 1.5x magic damage', effect: 'damageMult', value: 1.5, range: 4 },
+  { towers: ['frost', 'lightning'], name: 'Frostbolt', description: 'Frozen enemies take 1.8x lightning damage', effect: 'damageMult', value: 1.8, range: 4 },
+  { towers: ['cannon', 'catapult'], name: 'Artillery', description: 'Splash radius increased by 30%', effect: 'splashBoost', value: 1.3, range: 3 },
+  { towers: ['archer', 'ballista'], name: 'Marksman', description: 'Piercing bolts deal 1.4x damage', effect: 'damageMult', value: 1.4, range: 3 },
+  { towers: ['mage', 'necromancer'], name: 'Dark Arts', description: 'Magic damage increased by 1.3x', effect: 'damageMult', value: 1.3, range: 4 },
+];
 
 export class GameEngine {
   private state: GameEngineState;
@@ -183,6 +211,7 @@ export class GameEngine {
     this.updateFloatingTexts(dt);
     this.updateParticles(dt);
     this.updateScreenShake(dt);
+    this.updateWaveAnnouncement(dt);
     this.cleanupDead();
   }
 
@@ -247,18 +276,18 @@ export class GameEngine {
     s.stats.wave++;
     s.waveInProgress = true;
 
+    // Wave announcement banner
+    const isBossWave = WAVE_CONFIGS[s.stats.wave - 1]?.isBoss || (s.stats.wave > WAVE_CONFIGS.length && s.stats.wave % 3 === 0);
+    const announcementText = isBossWave
+      ? `BOSS WAVE ${s.stats.wave}!`
+      : `Wave ${s.stats.wave} Incoming!`;
+    s.waveAnnouncement = { text: announcementText, timer: 2500, maxTimer: 2500 };
+
     let config = WAVE_CONFIGS[s.stats.wave - 1];
 
-    // Endless mode: generate scaled waves beyond wave 20
+    // Endless mode: generate varied & escalating waves beyond wave 20
     if (!config) {
-      const scale = 1 + (s.stats.wave - WAVE_CONFIGS.length) * 0.15;
-      const allTypes: EnemyType[] = ['darkKnight', 'dragon', 'armored', 'flyer', 'splitterBoss', 'golem', 'troll'];
-      config = {
-        waveNumber: s.stats.wave,
-        enemies: allTypes.slice(0, 3).map(t => ({ type: t, count: Math.round(3 * scale), delay: 1000 })),
-        reward: Math.round(300 * scale),
-        isBoss: s.stats.wave % 5 === 0,
-      };
+      config = this.generateEndlessWave(s.stats.wave);
     }
 
     s.spawnQueue = [];
@@ -291,16 +320,9 @@ export class GameEngine {
     s.stats.wave++;
     let config = WAVE_CONFIGS[s.stats.wave - 1];
 
-    // Endless mode: generate scaled waves beyond the defined waves
+    // Endless mode: generate varied & escalating waves beyond defined waves
     if (!config) {
-      const scale = 1 + (s.stats.wave - WAVE_CONFIGS.length) * 0.15;
-      const allTypes: EnemyType[] = ['darkKnight', 'dragon', 'armored', 'flyer', 'splitterBoss', 'golem', 'troll'];
-      config = {
-        waveNumber: s.stats.wave,
-        enemies: allTypes.slice(0, 3).map(t => ({ type: t, count: Math.round(3 * scale), delay: 1000 })),
-        reward: Math.round(300 * scale),
-        isBoss: s.stats.wave % 5 === 0,
-      };
+      config = this.generateEndlessWave(s.stats.wave);
     }
 
     // Append to existing spawn queue instead of replacing
@@ -343,12 +365,71 @@ export class GameEngine {
     return s.stats.wave < WAVE_CONFIGS.length;
   }
 
+  private generateEndlessWave(waveNum: number): { waveNumber: number; enemies: Array<{ type: EnemyType; count: number; delay: number }>; reward: number; isBoss: boolean; bossType?: EnemyType } {
+    const endlessWave = waveNum - WAVE_CONFIGS.length; // How many waves past the end
+    const scale = 1 + endlessWave * 0.18;
+    const allTypes: EnemyType[] = ['goblin', 'imp', 'skeleton', 'werewolf', 'orc', 'golem', 'troll', 'banshee', 'darkKnight', 'armored', 'healer', 'tunneler', 'flyer'];
+    const bossTypes: EnemyType[] = ['dragon', 'splitterBoss'];
+
+    // Seeded pseudo-random based on wave number for variety
+    const seed = (n: number) => {
+      const x = Math.sin(n * 9973.1 + 0.1) * 10000;
+      return x - Math.floor(x);
+    };
+
+    // Pick 2-5 random enemy types based on wave
+    const numGroups = 2 + Math.floor(seed(waveNum * 3) * Math.min(4, 1 + endlessWave * 0.3));
+    const enemies: Array<{ type: EnemyType; count: number; delay: number }> = [];
+    const usedTypes = new Set<EnemyType>();
+
+    for (let g = 0; g < numGroups; g++) {
+      let type: EnemyType;
+      let attempts = 0;
+      do {
+        const idx = Math.floor(seed(waveNum * 7 + g * 13 + attempts * 31) * allTypes.length);
+        type = allTypes[idx];
+        attempts++;
+      } while (usedTypes.has(type) && attempts < 20);
+      usedTypes.add(type);
+
+      // Scale count based on enemy "weight" — more for weak enemies, fewer for strong
+      const weight = { goblin: 0.3, imp: 0.4, skeleton: 0.5, werewolf: 0.7, orc: 0.8, golem: 1.2, troll: 1.3, banshee: 0.9, darkKnight: 1.0, armored: 1.1, healer: 1.5, tunneler: 0.8, flyer: 0.9 };
+      const w = weight[type as keyof typeof weight] || 1.0;
+      const baseCount = Math.max(2, Math.round((6 / w) * scale));
+      const count = baseCount + Math.floor(seed(waveNum * 11 + g * 17) * 3);
+      const delay = Math.max(300, Math.round(1000 / (1 + endlessWave * 0.05)));
+
+      enemies.push({ type, count, delay });
+    }
+
+    // Boss every 3 waves in endless, with increasing frequency
+    const isBoss = endlessWave % 3 === 0 || (endlessWave > 10 && endlessWave % 2 === 0);
+    const bossType = bossTypes[Math.floor(seed(waveNum * 23) * bossTypes.length)];
+
+    // After wave 30, chance of double boss
+    if (endlessWave > 10 && seed(waveNum * 41) > 0.7) {
+      enemies.push({ type: bossTypes[Math.floor(seed(waveNum * 47) * bossTypes.length)], count: 1, delay: 4000 });
+    }
+
+    return {
+      waveNumber: waveNum,
+      enemies,
+      reward: Math.round(300 * scale + endlessWave * 20),
+      isBoss,
+      bossType: isBoss ? bossType : undefined,
+    };
+  }
+
   private updateNextWavePreview() {
     const s = this.state;
     const nextWaveIdx = s.stats.wave; // 0-indexed for next wave
     if (nextWaveIdx < WAVE_CONFIGS.length) {
       const config = WAVE_CONFIGS[nextWaveIdx];
       s.nextWavePreview = config.enemies.map(e => ({ type: e.type, count: e.count }));
+    } else if (s.endlessMode) {
+      // Generate preview for endless wave
+      const endlessConfig = this.generateEndlessWave(nextWaveIdx + 1);
+      s.nextWavePreview = endlessConfig.enemies.map(e => ({ type: e.type, count: e.count }));
     } else {
       s.nextWavePreview = [];
     }
@@ -723,6 +804,9 @@ export class GameEngine {
     const tower = this.state.towers.find(t => t.id === proj.towerId);
     const towerType = tower?.type || 'archer';
 
+    // Impact VFX at hit location
+    this.spawnImpactParticles(proj.targetX, proj.targetY, proj.type, proj.color);
+
     if (proj.splashRadius && proj.splashRadius > 0) {
       // Splash damage
       for (const enemy of this.state.enemies) {
@@ -801,12 +885,56 @@ export class GameEngine {
     }
   }
 
+  /** Check if a tower has an active synergy with a nearby tower */
+  private getSynergyMultiplier(tower: Tower | undefined, enemy: Enemy): number {
+    if (!tower) return 1;
+    let mult = 1;
+    for (const synergy of TOWER_SYNERGIES) {
+      const [t1, t2] = synergy.towers;
+      // Check if this tower is one of the synergy pair
+      if (tower.type !== t1 && tower.type !== t2) continue;
+      const partnerType = tower.type === t1 ? t2 : t1;
+
+      // Check for nearby partner tower
+      const hasPartner = this.state.towers.some(other => {
+        if (other.id === tower.id || other.type !== partnerType) return false;
+        const dx = other.x - tower.x;
+        const dy = other.y - tower.y;
+        return Math.sqrt(dx * dx + dy * dy) <= synergy.range * CELL_SIZE;
+      });
+
+      if (!hasPartner) continue;
+
+      // Apply synergy based on effect type
+      if (synergy.effect === 'damageMult') {
+        // Frost+X synergies: require enemy to be frozen/slowed
+        if (synergy.towers.includes('frost' as TowerType) && tower.type !== 'frost') {
+          if (enemy.frozen || enemy.slowTimer > 0) {
+            mult *= synergy.value;
+          }
+        } else if (synergy.towers.includes('poison' as TowerType) && tower.type !== 'poison') {
+          if (enemy.poisonTimer > 0) {
+            mult *= synergy.value;
+          }
+        } else {
+          mult *= synergy.value;
+        }
+      }
+    }
+    return mult;
+  }
+
   private dealDamage(enemy: Enemy, damage: number, projType: string, towerType: string) {
     if (!enemy.alive || enemy.dying) return;
     // Banshee immune to frost/poison
     if (enemy.type === 'banshee' && (projType === 'frost' || projType === 'poison')) return;
     // Armored immune to physical
     if (enemy.isArmored && ['arrow', 'cannonball', 'bolt', 'boulder'].includes(projType)) return;
+
+    // Apply tower synergy bonus
+    const sourceTower = this.state.towers.find(t => t.type === towerType);
+    const synergyMult = this.getSynergyMultiplier(sourceTower, enemy);
+    damage = Math.round(damage * synergyMult);
 
     enemy.hp -= damage;
     this.state.stats.damageDealt += damage;
@@ -1059,6 +1187,47 @@ export class GameEngine {
     }
   }
 
+  private spawnImpactParticles(x: number, y: number, projType: string, color: string) {
+    const count = projType === 'frost' ? 8 : projType === 'lightning' || projType === 'tesla' ? 6 : projType === 'poison' ? 10 : 5;
+    const impactColors: Record<string, string> = {
+      arrow: '#C8A96E',
+      fireball: '#FF5722',
+      cannonball: '#546E7A',
+      frost: '#B3E5FC',
+      lightning: '#FFD700',
+      poison: '#76FF03',
+      bolt: '#8D6E63',
+      boulder: '#90A4AE',
+      tesla: '#00E5FF',
+    };
+    const pColor = impactColors[projType] || color;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+      const speed = 40 + Math.random() * 80;
+      this.state.particles.push({
+        id: nanoid(),
+        x: x + (Math.random() - 0.5) * 8,
+        y: y + (Math.random() - 0.5) * 8,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 30,
+        color: pColor,
+        size: 2 + Math.random() * 3,
+        life: 300 + Math.random() * 200,
+        maxLife: 500,
+        opacity: 1,
+      });
+    }
+  }
+
+  private updateWaveAnnouncement(dt: number) {
+    if (this.state.waveAnnouncement) {
+      this.state.waveAnnouncement.timer -= dt;
+      if (this.state.waveAnnouncement.timer <= 0) {
+        this.state.waveAnnouncement = null;
+      }
+    }
+  }
+
   private cleanupDead() {
     this.state.enemies = this.state.enemies.filter(e => e.alive || e.dying);
     this.state.projectiles = this.state.projectiles.filter(p => p.alive);
@@ -1126,6 +1295,7 @@ export class GameEngine {
     } else {
       this.addFloatingText(tower.x, tower.y - 30, 'Placed!', '#F4C842');
     }
+    this.updateActiveSynergies();
     return true;
   }
 
@@ -1155,7 +1325,34 @@ export class GameEngine {
     // Remove allied units from this tower
     this.state.alliedUnits = this.state.alliedUnits.filter(u => u.towerId !== towerId);
     if (this.state.selectedTowerId === towerId) this.state.selectedTowerId = null;
+    this.updateActiveSynergies();
     return true;
+  }
+
+  private updateActiveSynergies() {
+    const synergies: Array<{ name: string; description: string }> = [];
+    const seen = new Set<string>();
+    for (const synergy of TOWER_SYNERGIES) {
+      if (seen.has(synergy.name)) continue;
+      const [t1, t2] = synergy.towers;
+      // Find all towers of each type
+      const towers1 = this.state.towers.filter(t => t.type === t1);
+      const towers2 = this.state.towers.filter(t => t.type === t2);
+      // Check if any pair is within range
+      for (const a of towers1) {
+        for (const b of towers2) {
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          if (Math.sqrt(dx * dx + dy * dy) <= synergy.range * CELL_SIZE) {
+            synergies.push({ name: synergy.name, description: synergy.description });
+            seen.add(synergy.name);
+            break;
+          }
+        }
+        if (seen.has(synergy.name)) break;
+      }
+    }
+    this.state.activeSynergies = synergies;
   }
 
   setTargetingMode(towerId: string, mode: TargetingMode) {

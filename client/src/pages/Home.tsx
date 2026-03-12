@@ -13,12 +13,15 @@ import GameHUD from "../components/GameHUD";
 import TowerShop from "../components/TowerShop";
 import MenuScreen from "../components/MenuScreen";
 import GameOverlay from "../components/GameOverlay";
+import SettingsPanel from "../components/SettingsPanel";
+import { Music, SFX } from "../game/audio";
 
 // Singleton engine to avoid re-creation issues
 let globalEngine: GameEngine | null = null;
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameEngineState | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const engineRef = useRef<GameEngine | null>(null);
   const initializedRef = useRef(false);
 
@@ -50,6 +53,7 @@ export default function Home() {
       difficulty?: import("../game/types").Difficulty
     ) => {
       engineRef.current?.startGame(mapId, difficulty);
+      if (!SFX.muted) Music.start();
     },
     []
   );
@@ -73,20 +77,61 @@ export default function Home() {
     engineRef.current?.sendNextWaveDuringWave();
   }, []);
 
+  const handleReturnToMenu = useCallback(() => {
+    Music.stop();
+    engineRef.current?.stopGame();
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    setShowSettings(true);
+  }, []);
+
+  const handleCloseSettings = useCallback(() => {
+    setShowSettings(false);
+  }, []);
+
+  // All tower types in order for hotkey selection
+  const TOWER_HOTKEYS: import("../game/types").TowerType[] = [
+    'archer', 'mage', 'cannon', 'frost', 'lightning', 'poison', 'ballista',
+    'infantry', 'hero',
+  ];
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Don't handle hotkeys when typing in inputs
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
       if (e.key === "Escape") {
-        engineRef.current?.selectTowerType(null);
-        engineRef.current?.selectTower(null);
+        if (showSettings) {
+          setShowSettings(false);
+        } else {
+          engineRef.current?.selectTowerType(null);
+          engineRef.current?.selectTower(null);
+        }
       }
-      if (e.key === " " || e.key === "p") {
+      if (e.key === " " || e.key === "p" || e.key === "P") {
         e.preventDefault();
         engineRef.current?.pauseGame();
+      }
+
+      // Tower hotkeys: 1-9
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 9 && num <= TOWER_HOTKEYS.length) {
+        const towerType = TOWER_HOTKEYS[num - 1];
+        const currentState = engineRef.current?.getState();
+        if (currentState?.gameState === 'playing') {
+          // Toggle: if already selected, deselect
+          if (currentState.selectedTowerType === towerType) {
+            engineRef.current?.selectTowerType(null);
+          } else {
+            engineRef.current?.selectTowerType(towerType);
+          }
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [showSettings]);
 
   if (!gameState || !engineRef.current) {
     return (
@@ -142,6 +187,7 @@ export default function Home() {
         onPause={handlePause}
         onNextWave={handleNextWave}
         onSendNextWave={handleSendNextWave}
+        onReturnToMenu={handleReturnToMenu}
       />
 
       {/* Main game area — takes remaining height */}
@@ -165,6 +211,9 @@ export default function Home() {
                 state={gameState}
                 onStart={handleStart}
                 onRestart={handleRestart}
+                onReturnToMenu={handleReturnToMenu}
+                onResume={handlePause}
+                onOpenSettings={handleOpenSettings}
               />
             </div>
           )}
@@ -188,12 +237,17 @@ export default function Home() {
         }}
       >
         <span style={{ color: "#92400e", fontFamily: "'Philosopher', serif" }}>
-          ESC: Deselect · Space/P: Pause
+          ESC: Deselect · Space/P: Pause · 1-9: Select Tower
         </span>
         <span style={{ color: "#78350f", fontFamily: "'Philosopher', serif" }}>
-          Fantasy Tower Defense ⚔️
+          Fantasy Tower Defense
         </span>
       </div>
+
+      {/* Settings Panel Overlay */}
+      {showSettings && (
+        <SettingsPanel onClose={handleCloseSettings} />
+      )}
     </div>
   );
 }

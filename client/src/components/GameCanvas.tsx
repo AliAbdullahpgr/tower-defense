@@ -7,8 +7,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import type { GameEngine } from '../game/engine';
 import type { GameEngineState } from '../game/engine';
 import { renderGame } from '../game/renderer';
-import { CELL_SIZE, GRID_COLS, GRID_ROWS, TOWER_DEFINITIONS } from '../game/constants';
+import { CELL_SIZE, GRID_COLS, GRID_ROWS, TOWER_DEFINITIONS, ENEMY_DEFINITIONS } from '../game/constants';
 import { SFX } from '../game/audio';
+import type { Enemy } from '../game/types';
 
 interface GameCanvasProps {
   engine: GameEngine;
@@ -18,6 +19,7 @@ interface GameCanvasProps {
 export default function GameCanvas({ engine, state }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hoverCellRef = useRef<{ col: number; row: number } | null>(null);
+  const hoverPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const canvasWidth = GRID_COLS * CELL_SIZE;
   const canvasHeight = GRID_ROWS * CELL_SIZE;
@@ -44,6 +46,14 @@ export default function GameCanvas({ engine, state }: GameCanvasProps) {
         const canPlace = engineState.gameState === 'playing' && engine.canPlaceTower(col, row);
         const def = TOWER_DEFINITIONS[engineState.selectedTowerType];
         drawPlacementPreview(ctx, col, row, canPlace, def?.range ?? 0);
+      }
+
+      // Draw enemy hover tooltip
+      if (hoverPosRef.current && !engineState.selectedTowerType) {
+        const hovered = findHoveredEnemy(engineState.enemies, hoverPosRef.current.x, hoverPosRef.current.y);
+        if (hovered) {
+          drawEnemyTooltip(ctx, hovered, canvasWidth, canvasHeight);
+        }
       }
     });
   }, [engine, canvasWidth, canvasHeight]);
@@ -83,10 +93,12 @@ export default function GameCanvas({ engine, state }: GameCanvasProps) {
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const cell = getCellFromEvent(e);
     hoverCellRef.current = cell ? { col: cell.col, row: cell.row } : null;
+    hoverPosRef.current = cell ? { x: cell.x, y: cell.y } : null;
   }, [getCellFromEvent]);
 
   const handleMouseLeave = useCallback(() => {
     hoverCellRef.current = null;
+    hoverPosRef.current = null;
   }, []);
 
   const cursor = state.selectedTowerType ? 'crosshair' : 'pointer';
@@ -107,6 +119,88 @@ export default function GameCanvas({ engine, state }: GameCanvasProps) {
       }}
     />
   );
+}
+
+// ── Enemy hover tooltip ──────────────────────────────
+
+function findHoveredEnemy(enemies: Enemy[], mx: number, my: number): Enemy | null {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (!e.alive || e.dying) continue;
+    const dx = e.x - mx;
+    const dy = e.y - my;
+    if (Math.sqrt(dx * dx + dy * dy) < e.size + 8) {
+      return e;
+    }
+  }
+  return null;
+}
+
+function drawEnemyTooltip(ctx: CanvasRenderingContext2D, enemy: Enemy, canvasW: number, _canvasH: number) {
+  const def = ENEMY_DEFINITIONS[enemy.type];
+  if (!def) return;
+
+  const tooltipW = 170;
+  const tooltipH = 70;
+  let tx = enemy.x + enemy.size + 12;
+  let ty = enemy.y - tooltipH / 2;
+
+  // Keep tooltip on screen
+  if (tx + tooltipW > canvasW) tx = enemy.x - enemy.size - tooltipW - 12;
+  if (ty < 4) ty = 4;
+
+  ctx.save();
+
+  // Background
+  ctx.fillStyle = 'rgba(13,7,2,0.92)';
+  ctx.strokeStyle = '#78350f';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(tx, ty, tooltipW, tooltipH, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  // Name
+  ctx.fillStyle = def.color;
+  ctx.font = "bold 11px 'Philosopher', serif";
+  ctx.textAlign = 'left';
+  ctx.fillText(`${def.emoji} ${def.name}`, tx + 8, ty + 15);
+
+  // HP bar
+  const barX = tx + 8;
+  const barY = ty + 22;
+  const barW = tooltipW - 16;
+  const barH = 6;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(barX, barY, barW, barH);
+  const pct = Math.max(0, enemy.hp / enemy.maxHp);
+  ctx.fillStyle = pct > 0.5 ? '#4CAF50' : pct > 0.25 ? '#FF9800' : '#F44336';
+  ctx.fillRect(barX, barY, barW * pct, barH);
+  ctx.fillStyle = '#fde68a';
+  ctx.font = '9px serif';
+  ctx.fillText(`${Math.round(enemy.hp)} / ${enemy.maxHp} HP`, barX, barY + 14);
+
+  // Type tags
+  const tags: string[] = [];
+  if (enemy.isFlying) tags.push('Flying');
+  if (enemy.isArmored) tags.push('Armored');
+  if (enemy.isHealer) tags.push('Healer');
+  if (enemy.isBoss) tags.push('BOSS');
+  if (enemy.frozen) tags.push('Frozen');
+  if (enemy.poisonTimer > 0) tags.push('Poisoned');
+
+  if (tags.length > 0) {
+    ctx.fillStyle = '#a78bfa';
+    ctx.font = '8px serif';
+    ctx.fillText(tags.join(' · '), barX, barY + 26);
+  }
+
+  // Speed info
+  ctx.fillStyle = '#92400e';
+  ctx.font = '8px serif';
+  ctx.fillText(`SPD: ${enemy.speed.toFixed(1)}  DMG: ${def.damage}`, barX, barY + 38);
+
+  ctx.restore();
 }
 
 // ── Placement preview overlay ──────────────────────────────

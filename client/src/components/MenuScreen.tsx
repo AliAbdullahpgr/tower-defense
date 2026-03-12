@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { MapId, Difficulty } from '../game/types';
-import { MAP_CONFIGS } from '../game/constants';
+import { MAP_CONFIGS, CELL_SIZE, GRID_COLS, GRID_ROWS, getPathCells } from '../game/constants';
 
 interface MenuScreenProps {
   onStart: (mapId: MapId, difficulty: Difficulty) => void;
@@ -129,6 +129,98 @@ function drawBgCanvas(canvas: HTMLCanvasElement) {
   fog.addColorStop(1, 'rgba(13,7,2,0.85)');
   ctx.fillStyle = fog;
   ctx.fillRect(0, H * 0.65, W, H * 0.17);
+}
+
+// Mini map preview component
+function MapPreview({ mapId, size = 80 }: { mapId: MapId; size?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const mapConfig = MAP_CONFIGS[mapId];
+    if (!mapConfig) return;
+
+    const scaleX = size / (GRID_COLS * CELL_SIZE);
+    const scaleY = size / (GRID_ROWS * CELL_SIZE);
+
+    // Dark background
+    ctx.fillStyle = '#0d1a08';
+    ctx.fillRect(0, 0, size, size);
+
+    // Draw grass grid
+    const cellW = size / GRID_COLS;
+    const cellH = size / GRID_ROWS;
+    const pathCells = getPathCells(mapConfig.waypoints as Array<[number, number]>);
+
+    for (let row = 0; row < GRID_ROWS; row++) {
+      for (let col = 0; col < GRID_COLS; col++) {
+        const key = `${col},${row}`;
+        const x = col * cellW;
+        const y = row * cellH;
+
+        if (pathCells.has(key)) {
+          ctx.fillStyle = '#8B7355';
+          ctx.fillRect(x, y, cellW + 0.5, cellH + 0.5);
+        } else {
+          const shade = (col + row) % 2 === 0 ? '#2A5A1A' : '#1A4A0A';
+          ctx.fillStyle = shade;
+          ctx.fillRect(x, y, cellW + 0.5, cellH + 0.5);
+        }
+      }
+    }
+
+    // Draw power spots
+    if (mapConfig.powerSpots) {
+      ctx.fillStyle = 'rgba(255,215,0,0.6)';
+      for (const [c, r] of mapConfig.powerSpots) {
+        ctx.beginPath();
+        ctx.arc(c * cellW + cellW / 2, r * cellH + cellH / 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Draw waypoint path as a line
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    const wp = mapConfig.waypoints as Array<[number, number]>;
+    ctx.moveTo(wp[0][0] * cellW + cellW / 2, wp[0][1] * cellH + cellH / 2);
+    for (let i = 1; i < wp.length; i++) {
+      ctx.lineTo(wp[i][0] * cellW + cellW / 2, wp[i][1] * cellH + cellH / 2);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Entry/exit markers
+    ctx.fillStyle = '#4CAF50';
+    ctx.beginPath();
+    ctx.arc(wp[0][0] * cellW + cellW / 2, wp[0][1] * cellH + cellH / 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#EF5350';
+    const last = wp[wp.length - 1];
+    ctx.beginPath();
+    ctx.arc(last[0] * cellW + cellW / 2, last[1] * cellH + cellH / 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }, [mapId, size]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{
+        borderRadius: '6px',
+        border: '1px solid rgba(139,105,20,0.4)',
+        flexShrink: 0,
+      }}
+    />
+  );
 }
 
 const MAP_LABELS: Record<MapId, { name: string; desc: string; color: string }> = {
@@ -274,7 +366,10 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
                     key={mapId}
                     onClick={() => setSelectedMap(mapId)}
                     style={{
-                      padding: '10px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 10px',
                       borderRadius: '8px',
                       border: isSelected ? `2px solid ${info.color}` : '2px solid rgba(120,53,15,0.4)',
                       background: isSelected ? `${info.color}22` : 'rgba(45,26,8,0.6)',
@@ -283,18 +378,24 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
                       transition: 'all 0.15s',
                     }}
                   >
-                    <div
-                      style={{
-                        fontFamily: "'Philosopher', serif",
-                        fontWeight: 'bold',
-                        fontSize: '12px',
-                        color: isSelected ? info.color : '#fde68a',
-                      }}
-                    >
-                      {info.name}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#78350f', marginTop: '2px' }}>
-                      {info.desc}
+                    <MapPreview mapId={mapId} size={48} />
+                    <div>
+                      <div
+                        style={{
+                          fontFamily: "'Philosopher', serif",
+                          fontWeight: 'bold',
+                          fontSize: '12px',
+                          color: isSelected ? info.color : '#fde68a',
+                        }}
+                      >
+                        {info.name}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#78350f', marginTop: '2px' }}>
+                        {info.desc}
+                      </div>
+                      <div style={{ fontSize: '8px', color: '#92400e', marginTop: '1px' }}>
+                        {'★'.repeat(MAP_CONFIGS[mapId].difficulty)}{'☆'.repeat(5 - MAP_CONFIGS[mapId].difficulty)}
+                      </div>
                     </div>
                   </button>
                 );

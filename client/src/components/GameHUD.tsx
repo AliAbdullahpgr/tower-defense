@@ -5,7 +5,7 @@
 
 import type { GameEngineState } from '../game/engine';
 import type { GameEngine } from '../game/engine';
-import { WAVE_CONFIGS } from '../game/constants';
+import { WAVE_CONFIGS, ENEMY_DEFINITIONS } from '../game/constants';
 
 interface GameHUDProps {
   state: GameEngineState;
@@ -13,13 +13,14 @@ interface GameHUDProps {
   onPause: () => void;
   onNextWave: () => void;
   onSendNextWave: () => void;
+  onReturnToMenu: () => void;
 }
 
-export default function GameHUD({ state, engine, onPause, onNextWave, onSendNextWave }: GameHUDProps) {
+export default function GameHUD({ state, engine, onPause, onNextWave, onSendNextWave, onReturnToMenu }: GameHUDProps) {
   const { stats, waveInProgress, waveCountdown, gameState, endlessMode, speedMultiplier } = state;
   const countdownSec = Math.ceil((waveCountdown || 0) / 1000);
   const isLastWave = !endlessMode && stats.wave >= WAVE_CONFIGS.length;
-  const interestGold = Math.floor(stats.gold * 0.05);
+  const interestGold = Math.floor(stats.gold * 0.01);
 
   return (
     <div
@@ -134,6 +135,39 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
             ∞ ENDLESS MODE
           </div>
         )}
+
+        {/* Wave Preview */}
+        {state.nextWavePreview && state.nextWavePreview.length > 0 && !waveInProgress && !isLastWave && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginTop: '3px',
+              padding: '2px 8px',
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: '4px',
+              fontSize: '9px',
+            }}
+          >
+            <span style={{ color: '#78350f', fontFamily: "'Philosopher', serif" }}>Next:</span>
+            {state.nextWavePreview.map((group, i) => {
+              const enemyDef = ENEMY_DEFINITIONS[group.type];
+              return (
+                <span
+                  key={i}
+                  title={enemyDef?.name || group.type}
+                  style={{
+                    color: enemyDef?.color || '#d97706',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {enemyDef?.emoji || '?'} ×{group.count}
+                </span>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Right: Controls */}
@@ -241,6 +275,25 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
           }}
         >
           {gameState === 'paused' ? '▶ Resume' : '⏸ Pause'}
+        </button>
+
+        <button
+          onClick={onReturnToMenu}
+          title="Return to Main Menu"
+          style={{
+            padding: '5px 8px',
+            background: 'rgba(45,26,8,0.8)',
+            color: '#78350f',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            borderRadius: '5px',
+            border: '1px solid rgba(120,53,15,0.5)',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            fontFamily: "'Philosopher', serif",
+          }}
+        >
+          ✕ Menu
         </button>
       </div>
     </div>
