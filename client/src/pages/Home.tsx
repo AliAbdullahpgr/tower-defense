@@ -69,6 +69,10 @@ export default function Home() {
     }
   }, []);
 
+  const handleSendNextWave = useCallback(() => {
+    engineRef.current?.sendNextWaveDuringWave();
+  }, []);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -137,6 +141,7 @@ export default function Home() {
         engine={engineRef.current!}
         onPause={handlePause}
         onNextWave={handleNextWave}
+        onSendNextWave={handleSendNextWave}
       />
 
       {/* Main game area — takes remaining height */}

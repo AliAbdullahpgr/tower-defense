@@ -282,6 +282,67 @@ export class GameEngine {
     this.updateNextWavePreview();
   }
 
+  /** Stack the next wave on top of the current one (enemies added to existing spawn queue). */
+  sendNextWaveDuringWave() {
+    const s = this.state;
+    // Must be actively playing with a wave in progress
+    if (s.gameState !== 'playing' || !s.waveInProgress) return;
+
+    s.stats.wave++;
+    let config = WAVE_CONFIGS[s.stats.wave - 1];
+
+    // Endless mode: generate scaled waves beyond the defined waves
+    if (!config) {
+      const scale = 1 + (s.stats.wave - WAVE_CONFIGS.length) * 0.15;
+      const allTypes: EnemyType[] = ['darkKnight', 'dragon', 'armored', 'flyer', 'splitterBoss', 'golem', 'troll'];
+      config = {
+        waveNumber: s.stats.wave,
+        enemies: allTypes.slice(0, 3).map(t => ({ type: t, count: Math.round(3 * scale), delay: 1000 })),
+        reward: Math.round(300 * scale),
+        isBoss: s.stats.wave % 5 === 0,
+      };
+    }
+
+    // Append to existing spawn queue instead of replacing
+    for (const group of config.enemies) {
+      for (let i = 0; i < group.count; i++) {
+        s.spawnQueue.push({ type: group.type, delay: group.delay, timer: group.delay });
+      }
+    }
+
+    // Boss wave
+    if (config.isBoss && config.bossType) {
+      const bossDef = ENEMY_DEFINITIONS[config.bossType];
+      const scaleFactor = 1 + (s.stats.wave - 1) * 0.1;
+      s.bossMaxHp = Math.round(bossDef.hp * scaleFactor * 2);
+      s.bossHp = s.bossMaxHp;
+      s.bossActive = true;
+      s.spawnQueue.push({ type: config.bossType, delay: 3000, timer: 3000 });
+    }
+
+    // Early send bonus: +10% of wave reward
+    const waveReward = config.reward;
+    const earlyBonus = Math.round(waveReward * 0.1);
+    if (earlyBonus > 0) {
+      s.stats.gold += earlyBonus;
+      s.stats.goldEarned += earlyBonus;
+      this.addFloatingText(540, 120, `+${earlyBonus}g Rush Bonus!`, '#22c55e', 1.2);
+    }
+
+    this.updateNextWavePreview();
+    this.notify();
+  }
+
+  /** Check if there are more waves available to stack */
+  canSendNextWave(): boolean {
+    const s = this.state;
+    if (s.gameState !== 'playing' || !s.waveInProgress) return false;
+    // In endless mode, always allow
+    if (s.endlessMode) return true;
+    // Otherwise, check if there are waves left
+    return s.stats.wave < WAVE_CONFIGS.length;
+  }
+
   private updateNextWavePreview() {
     const s = this.state;
     const nextWaveIdx = s.stats.wave; // 0-indexed for next wave

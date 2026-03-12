@@ -12,9 +12,10 @@ interface GameHUDProps {
   engine: GameEngine;
   onPause: () => void;
   onNextWave: () => void;
+  onSendNextWave: () => void;
 }
 
-export default function GameHUD({ state, engine, onPause, onNextWave }: GameHUDProps) {
+export default function GameHUD({ state, engine, onPause, onNextWave, onSendNextWave }: GameHUDProps) {
   const { stats, waveInProgress, waveCountdown, gameState, endlessMode, speedMultiplier } = state;
   const countdownSec = Math.ceil((waveCountdown || 0) / 1000);
   const isLastWave = !endlessMode && stats.wave >= WAVE_CONFIGS.length;
@@ -199,6 +200,28 @@ export default function GameHUD({ state, engine, onPause, onNextWave }: GameHUDP
             }}
           >
             ▶ Send Wave
+          </button>
+        )}
+
+        {waveInProgress && engine.canSendNextWave() && (
+          <button
+            onClick={onSendNextWave}
+            title="Send the next wave now for a gold bonus!"
+            style={{
+              padding: '5px 12px',
+              background: 'linear-gradient(90deg, #7c2d12, #9a3412)',
+              color: '#fdba74',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              borderRadius: '5px',
+              border: '1px solid #ea580c',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              boxShadow: '0 0 8px rgba(234,88,12,0.3)',
+              fontFamily: "'Philosopher', serif",
+            }}
+          >
+            ⚡ Rush Next Wave
           </button>
         )}
 
