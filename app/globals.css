@@ -115,7 +115,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Philosopher', serif;
+    font-family: "Philosopher", serif;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -168,7 +168,7 @@
   background: #1a0f04;
 }
 ::-webkit-scrollbar-thumb {
-  background: #8B6914;
+  background: #8b6914;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {

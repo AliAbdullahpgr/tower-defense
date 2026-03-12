@@ -1,13 +1,15 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, Home } from "lucide-react";
-import { useLocation } from "wouter";
+import { useRouter } from "next/navigation";
 
 export default function NotFound() {
-  const [, setLocation] = useLocation();
+  const router = useRouter();
 
   const handleGoHome = () => {
-    setLocation("/");
+    router.push("/");
   };
 
   return (
