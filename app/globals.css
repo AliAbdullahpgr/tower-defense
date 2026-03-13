@@ -116,6 +116,11 @@
   body {
     @apply bg-background text-foreground;
     font-family: "Philosopher", serif;
+    background-image: url('/pixellab-a-homepage-image-for-a-tower-d-1773399701424.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),

@@ -30,12 +30,31 @@ function getHighScores(): HighScore[] {
   }
 }
 
-function drawBgCanvas(canvas: HTMLCanvasElement) {
+// Background image
+const BG_IMAGE = '/pixellab-a-homepage-image-for-a-tower-d-1773399701424.png';
+
+function drawBgCanvas(canvas: HTMLCanvasElement, bgImage: HTMLImageElement | null) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const W = canvas.width, H = canvas.height;
 
-  // Sky gradient
+  // Draw background image if loaded
+  if (bgImage && bgImage.complete && bgImage.naturalWidth > 0) {
+    // Cover the canvas while maintaining aspect ratio
+    const scale = Math.max(W / bgImage.naturalWidth, H / bgImage.naturalHeight);
+    const imgW = bgImage.naturalWidth * scale;
+    const imgH = bgImage.naturalHeight * scale;
+    const imgX = (W - imgW) / 2;
+    const imgY = (H - imgH) / 2;
+    ctx.drawImage(bgImage, imgX, imgY, imgW, imgH);
+    
+    // Dark overlay for better text readability
+    ctx.fillStyle = 'rgba(10,26,26,0.45)';
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
+
+  // Fallback: Sky gradient
   const sky = ctx.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0, '#0d0520');
   sky.addColorStop(0.45, '#1a0a3d');
@@ -240,6 +259,7 @@ const DIFFICULTY_LABELS: Record<Difficulty, { name: string; desc: string; color:
 
 export default function MenuScreen({ onStart }: MenuScreenProps) {
   const bgRef = useRef<HTMLCanvasElement>(null);
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
   const [selectedMap, setSelectedMap] = useState<MapId>('serpentine');
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('normal');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -248,10 +268,22 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
   useEffect(() => {
     const canvas = bgRef.current;
     if (!canvas) return;
+    
+    // Load background image
+    if (!bgImageRef.current) {
+      const img = new Image();
+      img.src = BG_IMAGE;
+      img.onload = () => {
+        bgImageRef.current = img;
+        drawBgCanvas(canvas, img);
+      };
+      bgImageRef.current = img;
+    }
+    
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      drawBgCanvas(canvas);
+      drawBgCanvas(canvas, bgImageRef.current);
     };
     resize();
     window.addEventListener('resize', resize);

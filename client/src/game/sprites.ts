@@ -13,8 +13,12 @@ import type { MapId, EnemyType, TowerType, ProjectileType } from './types';
 const spriteCache = new Map<string, HTMLImageElement>();
 const loadingPromises = new Map<string, Promise<HTMLImageElement>>();
 
+const isBrowser = typeof window !== 'undefined';
+
 /** Load a single image by path, with caching. Returns image if loaded, null if still loading. */
 export function loadImage(path: string): HTMLImageElement | null {
+  if (!isBrowser) return null;
+  
   const cached = spriteCache.get(path);
   if (cached && cached.complete && cached.naturalWidth > 0) {
     return cached;
@@ -88,13 +92,8 @@ export function getRuinDrawSize(variant: number, cellSize: number): { w: number;
 // ============================================================
 
 // Tile indices: FieldsTile_01 through FieldsTile_64
-// We use specific tiles for grass and path:
-// Grass tiles: various green field tiles
-// Path tiles: various dirt/stone tiles
-
-// Grass tile indices (chosen from the 64-tile set for variety)
+// Use the actual terrain tile sheet for the whole map.
 const GRASS_TILE_INDICES = [1, 2, 3, 5, 6, 9, 10, 13, 14];
-// Path tile indices
 const PATH_TILE_INDICES = [33, 34, 35, 36, 37, 38];
 
 export function getTileSprite(index: number): HTMLImageElement | null {
@@ -102,7 +101,7 @@ export function getTileSprite(index: number): HTMLImageElement | null {
   return loadImage(`/sprites/tiles/FieldsTile_${num}.png`);
 }
 
-/** Get a grass tile based on grid position (deterministic) */
+/** Get a grass tile based on grid position from the field tile sheet. */
 export function getGrassTile(col: number, row: number): HTMLImageElement | null {
   const idx = GRASS_TILE_INDICES[(col * 7 + row * 13) % GRASS_TILE_INDICES.length];
   return getTileSprite(idx);
@@ -205,6 +204,17 @@ const ENEMY_SPRITE_MAP: Partial<Record<EnemyType, EnemySpriteMapping>> = {
 
   // Boss Dragon: AI-generated pixel art dragon boss with walk animation
   bossDragon:    { folder: 'enemies/bossDragon', frameSize: 96, frameCount: 6, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  
+  // Quadruped Bosses (AI-generated)
+  bossQuadrupedBear:     { folder: 'enemies/bossQuadrupeds/demonic_bear', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  bossQuadrupedHorse:    { folder: 'enemies/bossQuadrupeds/undead_horse', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  bossQuadrupedLion:     { folder: 'enemies/bossQuadrupeds/crystal_lion', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  bossQuadrupedWolf:     { folder: 'enemies/bossQuadrupeds/war_wolf', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  bossQuadrupedStoneBear: { folder: 'enemies/bossQuadrupeds/stone_bear', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  
+  // Epic Bosses (AI-generated)
+  bossTitan:    { folder: 'enemies/bossTitan', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  bossSerpent:  { folder: 'enemies/bossSerpent', frameSize: 56, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
 };
 
 // ============================================================
@@ -579,6 +589,147 @@ export function getCharacterSprite(name: 'knight_hero' | 'mage_hero' | 'orc_brut
 }
 
 // ============================================================
+// DIRECTIONAL CHARACTER SPRITES (PixelLab generated)
+// ============================================================
+
+export type Direction = 'south' | 'south-west' | 'west' | 'north-west' | 'north' | 'north-east' | 'east' | 'south-east';
+
+export type PixelLabCharacterName = 'hero_sword' | 'wizard' | 'spear_hero' | 'dragon' | 'infantry' | 'wolf' | 'skeleton' | 'archer' | 'pikeman' | 'paladin';
+
+interface PixelLabCharacterConfig {
+  folder: string;
+  size: number;
+  directions: number;
+  animations: string[];
+}
+
+const PIXELLAB_CHARACTERS: Record<PixelLabCharacterName, PixelLabCharacterConfig> = {
+  hero_sword: { folder: 'hero_sword', size: 48, directions: 8, animations: ['fireball'] },
+  wizard: { folder: 'wizard', size: 48, directions: 8, animations: [] },
+  spear_hero: { folder: 'spear_hero', size: 48, directions: 8, animations: [] },
+  dragon: { folder: 'dragon', size: 48, directions: 8, animations: ['fast-walk'] },
+  infantry: { folder: 'infantry', size: 48, directions: 4, animations: [] },
+  wolf: { folder: 'wolf', size: 48, directions: 4, animations: [] },
+  skeleton: { folder: 'skeleton', size: 48, directions: 4, animations: [] },
+  archer: { folder: 'archer', size: 48, directions: 4, animations: [] },
+  pikeman: { folder: 'pikeman', size: 48, directions: 4, animations: [] },
+  paladin: { folder: 'paladin', size: 48, directions: 4, animations: [] },
+};
+
+function getDirectionLabel(dir: Direction): string {
+  return dir;
+}
+
+export function getPixelLabCharacterRotation(
+  name: PixelLabCharacterName,
+  direction: Direction
+): HTMLImageElement | null {
+  const config = PIXELLAB_CHARACTERS[name];
+  if (!config) return null;
+  return loadImage(`/sprites/characters/${config.folder}/rotations/${direction}.png`);
+}
+
+export function getPixelLabCharacterAnimationFrame(
+  name: PixelLabCharacterName,
+  animation: string,
+  direction: Direction,
+  frameIndex: number
+): HTMLImageElement | null {
+  const config = PIXELLAB_CHARACTERS[name];
+  if (!config || !config.animations.includes(animation)) return null;
+  const frame = `frame_${String(frameIndex).padStart(3, '0')}.png`;
+  return loadImage(`/sprites/characters/${config.folder}/animations/${animation}/${direction}/${frame}`);
+}
+
+interface PixelLabAnimationConfig {
+  path: string;
+  frameWidth: number;
+  frameHeight: number;
+  frameCount: number;
+}
+
+function getPixelLabAnimationConfig(
+  name: PixelLabCharacterName,
+  animation: string
+): PixelLabAnimationConfig | null {
+  const config = PIXELLAB_CHARACTERS[name];
+  if (!config || !config.animations.includes(animation)) return null;
+  const frameCounts: Record<string, number> = {
+    'fireball': 6,
+    'fast-walk': 8,
+    'walking-6-frames': 6,
+  };
+  return {
+    path: `/sprites/characters/${config.folder}/animations/${animation}`,
+    frameWidth: config.size,
+    frameHeight: config.size,
+    frameCount: frameCounts[animation] || 6,
+  };
+}
+
+export function drawPixelLabCharacter(
+  ctx: CanvasRenderingContext2D,
+  name: PixelLabCharacterName,
+  x: number,
+  y: number,
+  direction: Direction,
+  size: number,
+  animation: string | null = null,
+  animFrame: number = 0
+): boolean {
+  if (animation) {
+    const frameIndex = Math.floor(animFrame) % 8;
+    const img = getPixelLabCharacterAnimationFrame(name, animation, direction, frameIndex);
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+      return true;
+    }
+  }
+  const img = getPixelLabCharacterRotation(name, direction);
+  if (!img) return false;
+  if (!img.complete || img.naturalWidth === 0) return false;
+  ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
+  return true;
+}
+
+function angleToDirection(angle: number): Direction {
+  const normalized = ((angle % 360) + 360) % 360;
+  if (normalized < 22.5 || normalized >= 337.5) return 'east';
+  if (normalized < 67.5) return 'south-east';
+  if (normalized < 112.5) return 'south';
+  if (normalized < 157.5) return 'south-west';
+  if (normalized < 202.5) return 'west';
+  if (normalized < 247.5) return 'north-west';
+  if (normalized < 292.5) return 'north';
+  return 'north-east';
+}
+
+function angleToDirection4(angle: number): 'south' | 'west' | 'north' | 'east' {
+  const normalized = ((angle % 360) + 360) % 360;
+  if (normalized < 45 || normalized >= 315) return 'east';
+  if (normalized < 135) return 'south';
+  if (normalized < 225) return 'west';
+  return 'north';
+}
+
+export function drawPixelLabCharacterByAngle(
+  ctx: CanvasRenderingContext2D,
+  name: PixelLabCharacterName,
+  x: number,
+  y: number,
+  angle: number,
+  size: number,
+  animation: string | null = null,
+  animFrame: number = 0
+): boolean {
+  const config = PIXELLAB_CHARACTERS[name];
+  const direction = config?.directions === 4 
+    ? angleToDirection4(angle) 
+    : angleToDirection(angle);
+  return drawPixelLabCharacter(ctx, name, x, y, direction, size, animation, animFrame);
+}
+
+// ============================================================
 // MAGIC CRYSTAL TOWER SPRITE
 // ============================================================
 
@@ -804,9 +955,8 @@ export function preloadMapSprites(mapId: MapId): void {
   if (_preloaded) return;
   _preloaded = true;
 
-  // Tile sprites (most commonly used)
-  const allTileIndices = [...new Set([...GRASS_TILE_INDICES, ...PATH_TILE_INDICES])];
-  for (const idx of allTileIndices) {
+  // Terrain tiles
+  for (const idx of [...new Set([...GRASS_TILE_INDICES, ...PATH_TILE_INDICES])]) {
     const num = idx.toString().padStart(2, '0');
     loadImage(`/sprites/tiles/FieldsTile_${num}.png`);
   }
@@ -877,6 +1027,37 @@ export function preloadMapSprites(mapId: MapId): void {
   loadImage('/sprites/characters/mage_hero.png');
   loadImage('/sprites/characters/orc_brute.png');
   loadImage('/sprites/characters/orc_raider.png');
+
+  // PixelLab directional character sprites
+  const directions8: Direction[] = ['south', 'south-west', 'west', 'north-west', 'north', 'north-east', 'east', 'south-east'];
+  const directions4: Direction[] = ['south', 'west', 'north', 'east'];
+  const pixellabNames8: PixelLabCharacterName[] = ['hero_sword', 'wizard', 'spear_hero', 'dragon'];
+  const pixellabNames4: PixelLabCharacterName[] = ['infantry', 'wolf', 'skeleton'];
+  for (const name of pixellabNames8) {
+    for (const dir of directions8) {
+      loadImage(`/sprites/characters/${name}/rotations/${dir}.png`);
+    }
+  }
+  for (const name of pixellabNames4) {
+    for (const dir of directions4) {
+      loadImage(`/sprites/characters/${name}/rotations/${dir}.png`);
+    }
+  }
+  // Preload archer, pikeman, paladin (new 4-dir characters)
+  const newChars4: PixelLabCharacterName[] = ['archer', 'pikeman', 'paladin'];
+  for (const name of newChars4) {
+    for (const dir of directions4) {
+      loadImage(`/sprites/characters/${name}/rotations/${dir}.png`);
+    }
+  }
+  // Preload animation frames for hero_sword fireball
+  for (let i = 0; i < 6; i++) {
+    loadImage(`/sprites/characters/hero_sword/animations/fireball/south/frame_${String(i).padStart(3, '0')}.png`);
+  }
+  // Preload animation frames for dragon fast-walk
+  for (let i = 0; i < 8; i++) {
+    loadImage(`/sprites/characters/dragon/animations/fast-walk/south/frame_${String(i).padStart(3, '0')}.png`);
+  }
 
   // Magic crystal tower
   loadImage('/sprites/towers/magic_crystal_tower.png');

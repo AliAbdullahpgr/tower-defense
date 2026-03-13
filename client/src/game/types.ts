@@ -4,12 +4,15 @@
 
 export type TowerType =
   | 'archer' | 'mage' | 'cannon' | 'frost' | 'lightning' | 'poison' | 'ballista'
-  | 'infantry' | 'hero' | 'beastmaster' | 'necromancer' | 'catapult' | 'tesla';
+  | 'infantry' | 'hero' | 'beastmaster' | 'necromancer' | 'catapult' | 'tesla'
+  | 'archer_barracks' | 'pikeman_barracks' | 'paladin_shrine';
 
 export type EnemyType =
   | 'goblin' | 'imp' | 'skeleton' | 'werewolf' | 'orc' | 'golem'
   | 'troll' | 'banshee' | 'darkKnight' | 'dragon'
   | 'armored' | 'healer' | 'tunneler' | 'flyer' | 'splitterBoss' | 'bossDragon'
+  | 'bossQuadrupedBear' | 'bossQuadrupedHorse' | 'bossQuadrupedLion' | 'bossQuadrupedWolf' | 'bossQuadrupedStoneBear'
+  | 'bossTitan' | 'bossSerpent'
   | 'firebug' | 'leafbug' | 'magmaCrab' | 'scorpion';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'victory' | 'defeat';
@@ -78,7 +81,7 @@ export interface Enemy {
 export interface AlliedUnit {
   id: string;
   towerId: string;
-  type: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton';
+  type: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton' | 'archer' | 'pikeman' | 'paladin';
   x: number;
   y: number;
   hp: number;
@@ -92,7 +95,7 @@ export interface AlliedUnit {
   alive: boolean;
   walkCycle: number;
   facingLeft: boolean;
-  // Patrol: walk along path segment near tower
+  moveAngle: number;
   patrolX: number;
   patrolY: number;
   patrolRadius: number;
@@ -123,7 +126,7 @@ export interface Tower {
   targetingMode: TargetingMode;
   // For unit-spawning towers
   spawnsUnits?: boolean;
-  unitType?: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton';
+  unitType?: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton' | 'archer' | 'pikeman' | 'paladin';
   spawnCooldown?: number;
   spawnTimer?: number;
   maxUnits?: number;
@@ -238,7 +241,7 @@ export interface TowerDefinition {
   specialEffect?: 'slow' | 'freeze' | 'splash' | 'chain' | 'poison' | 'pierce';
   splashRadius?: number;
   spawnsUnits?: boolean;
-  unitType?: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton';
+  unitType?: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton' | 'archer' | 'pikeman' | 'paladin';
   spawnCooldown?: number;
   maxUnits?: number;
   isAirCapable?: boolean;
