@@ -14,12 +14,15 @@ import {
   drawEnemySprite, drawFoozleEnemySprite,
   drawArcherTowerSprite, drawArcherTowerPreview,
   drawFoozleTowerSprite, drawMagicCrystalTowerSprite,
-  getCharacterSprite, getPropSprite,
-  getTreeSprite, getRockSprite,
+  getCharacterSprite,
+  getTreeSprite, getSpecialTreeSprite, getRockSprite,
   getGrassDecorSprite, getFlowerSprite, getBushSprite,
   getPlacementSprite,
+  drawPixelLabCharacterByAngle,
+  Direction,
+  PixelLabCharacterName,
   drawSpriteFrame, getFlagSpriteConfig, getCampfireSpriteConfig,
-  getLightningSpriteConfig,
+  getLightningSpriteConfig, getFenceSprite, getStoneSprite, getCampSprite, getDecorSprite,
   updateSpriteAnimations, getAnimTime,
   loadImage,
 } from './sprites';
@@ -30,6 +33,138 @@ import {
 
 // Track whether sprites have been preloaded for current map
 let lastPreloadedMap: string | null = null;
+
+type MapDecorationType =
+  | 'ruin'
+  | 'tree'
+  | 'special_tree'
+  | 'rock'
+  | 'bush'
+  | 'flower'
+  | 'grass_decor'
+  | 'flag'
+  | 'campfire'
+  | 'stone'
+  | 'camp'
+  | 'decor';
+
+type DecorationPlacement = [number, number, MapDecorationType, number];
+
+interface MapPalette {
+  backdropTop: string;
+  backdropBottom: string;
+  meadowTint: string;
+  meadowShade: string;
+  meadowBlade: string;
+  meadowBloom: string;
+  pathTint: string;
+  pathShade: string;
+  pathDust: string;
+  powerGlow: string;
+  powerCore: string;
+}
+
+const SPECIAL_TREE_NAMES = [
+  'Autumn_tree1.png',
+  'Moss_tree1.png',
+  'Broken_tree3.png',
+  'Burned_tree2.png',
+  'Flower_tree1.png',
+  'Fruit_tree2.png',
+];
+
+const MAP_PALETTES: Record<MapId, MapPalette> = {
+  serpentine: {
+    backdropTop: '#24371f',
+    backdropBottom: '#162312',
+    meadowTint: '#5f8d44',
+    meadowShade: '#2b4f1f',
+    meadowBlade: '#9fcd6b',
+    meadowBloom: '#f4e285',
+    pathTint: '#b09a72',
+    pathShade: '#665338',
+    pathDust: '#eadbb2',
+    powerGlow: '#6ce5d8',
+    powerCore: '#fff1a6',
+  },
+  crossroads: {
+    backdropTop: '#31402b',
+    backdropBottom: '#1b2518',
+    meadowTint: '#738654',
+    meadowShade: '#40552e',
+    meadowBlade: '#bdd17a',
+    meadowBloom: '#ffe59a',
+    pathTint: '#bca37e',
+    pathShade: '#70593c',
+    pathDust: '#f1ddba',
+    powerGlow: '#5fd8e3',
+    powerCore: '#fff0aa',
+  },
+  spiral: {
+    backdropTop: '#22333c',
+    backdropBottom: '#131d23',
+    meadowTint: '#5f7b67',
+    meadowShade: '#29453a',
+    meadowBlade: '#9ecf9e',
+    meadowBloom: '#c9e8ff',
+    pathTint: '#9f9684',
+    pathShade: '#5c574a',
+    pathDust: '#d7d6ce',
+    powerGlow: '#83d3ff',
+    powerCore: '#f9f0b2',
+  },
+  maze: {
+    backdropTop: '#453526',
+    backdropBottom: '#24190f',
+    meadowTint: '#8e7e4f',
+    meadowShade: '#5c4c27',
+    meadowBlade: '#c8bd73',
+    meadowBloom: '#ffcf84',
+    pathTint: '#bea17a',
+    pathShade: '#6e4f31',
+    pathDust: '#f2d7ae',
+    powerGlow: '#7bd4c0',
+    powerCore: '#fff0aa',
+  },
+  gauntlet: {
+    backdropTop: '#27333b',
+    backdropBottom: '#121c22',
+    meadowTint: '#6e8d92',
+    meadowShade: '#39555f',
+    meadowBlade: '#d8f0f2',
+    meadowBloom: '#edf9ff',
+    pathTint: '#c5c8cb',
+    pathShade: '#6c7277',
+    pathDust: '#f4f7fa',
+    powerGlow: '#8ae6ff',
+    powerCore: '#ffffff',
+  },
+};
+
+const decorationCache = new Map<MapId, DecorationPlacement[]>();
+
+function getMapPalette(mapId: MapId): MapPalette {
+  return MAP_PALETTES[mapId] ?? MAP_PALETTES.serpentine;
+}
+
+function stringSeed(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededUnit(seed: number, x: number, y: number, salt = 0): number {
+  const raw = Math.sin(seed * 0.001 + x * 127.1 + y * 311.7 + salt * 74.7) * 43758.5453123;
+  return raw - Math.floor(raw);
+}
+
+function parseCellKey(key: string): [number, number] {
+  const [col, row] = key.split(',').map(Number);
+  return [col, row];
+}
 
 export function renderGame(ctx: CanvasRenderingContext2D, state: GameEngineState, _dt: number) {
   const { screenShake } = state;
@@ -72,126 +207,55 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameEngineState
 
 function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
   const { pathCells, powerSpots, waypoints } = state;
+  const mapId = (state.mapId as MapId) || 'serpentine';
+  const palette = getMapPalette(mapId);
+  const worldWidth = GRID_COLS * CELL_SIZE;
+  const worldHeight = GRID_ROWS * CELL_SIZE;
 
-  // First pass: draw all tiles
+  const backdrop = ctx.createLinearGradient(0, 0, 0, worldHeight);
+  backdrop.addColorStop(0, palette.backdropTop);
+  backdrop.addColorStop(1, palette.backdropBottom);
+  ctx.fillStyle = backdrop;
+  ctx.fillRect(0, 0, worldWidth, worldHeight);
+
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const x = col * CELL_SIZE;
       const y = row * CELL_SIZE;
       const key = `${col},${row}`;
+      const isPath = pathCells.has(key);
+      const isPowerSpot = powerSpots?.has(key) ?? false;
 
-      if (pathCells.has(key)) {
-        // Path cell with clear cobblestone look
+      if (isPath) {
         const pathTile = getPathTile(col, row);
         if (pathTile) {
           ctx.drawImage(pathTile, x, y, CELL_SIZE, CELL_SIZE);
         } else {
-          // Procedural cobblestone path
           const grad = ctx.createLinearGradient(x, y, x + CELL_SIZE, y + CELL_SIZE);
-          grad.addColorStop(0, '#9A8A6A');
-          grad.addColorStop(0.5, '#8A7A5A');
-          grad.addColorStop(1, '#7A6A4A');
+          grad.addColorStop(0, palette.pathTint);
+          grad.addColorStop(0.55, '#9b8665');
+          grad.addColorStop(1, palette.pathShade);
           ctx.fillStyle = grad;
           ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-          // Cobblestone pattern
-          ctx.fillStyle = 'rgba(60,50,40,0.3)';
-          for (let cy = 0; cy < 3; cy++) {
-            for (let cx = 0; cx < 3; cx++) {
-              const ox = (cx * 20) + (cy % 2) * 10;
-              const oy = cy * 20;
-              ctx.beginPath();
-              ctx.roundRect(x + ox + 2, y + oy + 2, 16, 16, 3);
-              ctx.fill();
-            }
-          }
-        }
-      } else if (powerSpots && powerSpots.has(key)) {
-        // Power spot with grass underneath
-        const grassTile = getGrassTile(col, row);
-        if (grassTile) {
-          ctx.drawImage(grassTile, x, y, CELL_SIZE, CELL_SIZE);
-        } else {
-          const grad = ctx.createRadialGradient(x + CELL_SIZE/2, y + CELL_SIZE/2, 5, x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE * 0.7);
-          grad.addColorStop(0, '#4A7A3A');
-          grad.addColorStop(0.5, '#3A6A2A');
-          grad.addColorStop(1, '#2A5A1A');
-          ctx.fillStyle = grad;
-          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-        }
-        // Cyan power aura overlay
-        ctx.save();
-        ctx.globalAlpha = 0.4 + Math.sin(Date.now() / 500) * 0.2;
-        const starGrad = ctx.createRadialGradient(x + CELL_SIZE/2, y + CELL_SIZE/2, 0, x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE * 0.5);
-        starGrad.addColorStop(0, '#4DD0E1');
-        starGrad.addColorStop(1, 'transparent');
-        ctx.fillStyle = starGrad;
-        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-        ctx.restore();
-        // Tower placement indicator
-        const placementSprite = getPlacementSprite(1);
-        if (placementSprite) {
-          ctx.save();
-          ctx.globalAlpha = 0.8;
-          ctx.drawImage(placementSprite, x + 4, y + 4, CELL_SIZE - 8, CELL_SIZE - 8);
-          ctx.restore();
         }
       } else {
-        // Grass cell — always draw solid green base first for consistent color
-        const shade = ((col + row) % 2 === 0) ? '#3A7A28' : '#2E6B20';
-        ctx.fillStyle = shade;
-        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         const grassTile = getGrassTile(col, row);
         if (grassTile) {
-          // Draw sprite with green tint overlay to keep consistent green look
           ctx.drawImage(grassTile, x, y, CELL_SIZE, CELL_SIZE);
-          ctx.save();
-          ctx.globalAlpha = 0.25;
-          ctx.fillStyle = '#2E7D20';
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-          ctx.restore();
         } else {
-          // Procedural grass tufts
-          ctx.globalAlpha = 0.35;
-          ctx.fillStyle = '#5AAA3A';
-          ctx.fillRect(x + 2, y + 2, 8, 3);
-          ctx.fillRect(x + 20, y + 35, 6, 3);
-          ctx.fillRect(x + 45, y + 15, 7, 3);
-          ctx.globalAlpha = 1;
+          const grad = ctx.createLinearGradient(x, y, x + CELL_SIZE, y + CELL_SIZE);
+          grad.addColorStop(0, palette.meadowTint);
+          grad.addColorStop(1, palette.meadowShade);
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         }
+        if (isPowerSpot) drawPowerSpotPad(ctx, x, y, palette);
       }
     }
   }
 
-  // Second pass: draw path borders for clarity
-  ctx.strokeStyle = '#5A4A3A';
-  ctx.lineWidth = 2;
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      const key = `${col},${row}`;
-      if (!pathCells.has(key)) continue;
-      const x = col * CELL_SIZE;
-      const y = row * CELL_SIZE;
-      // Draw border only on edges adjacent to non-path cells
-      const drawBorder = (dx: number, dy: number) => {
-        const nkey = `${col + dx},${row + dy}`;
-        if (!pathCells.has(nkey)) {
-          ctx.beginPath();
-          if (dx === -1) { ctx.moveTo(x, y); ctx.lineTo(x, y + CELL_SIZE); }
-          if (dx === 1) { ctx.moveTo(x + CELL_SIZE, y); ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE); }
-          if (dy === -1) { ctx.moveTo(x, y); ctx.lineTo(x + CELL_SIZE, y); }
-          if (dy === 1) { ctx.moveTo(x, y + CELL_SIZE); ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE); }
-          ctx.stroke();
-        }
-      };
-      drawBorder(-1, 0);
-      drawBorder(1, 0);
-      drawBorder(0, -1);
-      drawBorder(0, 1);
-    }
-  }
-
-  drawMapDecorations(ctx, pathCells, powerSpots || new Set(), state.mapId as MapId);
+  drawPathBoundaries(ctx, pathCells);
+  drawMapDecorations(ctx, pathCells, powerSpots || new Set(), mapId);
   if (waypoints && waypoints.length > 1) {
     drawPathArrows(ctx, waypoints);
     const [startCol, startRow] = waypoints[0];
@@ -201,48 +265,221 @@ function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
   }
 }
 
-// Decoration definitions: [col, row, type, variant]
-// type: 'ruin'=ruin sprite, 'tree'=tree sprite, 'rock'=rock sprite,
-//       'bush'=bush, 'flower'=flower, 'grass_decor'=grass tuft,
-//       'flag'=animated flag, 'campfire'=animated campfire
-// variant: depends on type (ruin 1-5, tree 1-3, rock 1-5, etc.)
-const DECORATION_PLACEMENTS: Array<[number, number, string, number]> = [
-  // 2 ruins
-  [1, 1, 'ruin', 1],
-  [14, 6, 'ruin', 3],
-  // 6 trees — mix of types, spread around the map edges
-  [0, 0, 'tree', 3],
-  [17, 0, 'pine_tree', 1],
-  [8, 3, 'tree', 2],
-  [0, 11, 'tree', 1],
-  [17, 11, 'pine_tree', 1],
-  [11, 0, 'tree', 3],
-  // 7 rocks — scattered near the path
-  [13, 2, 'rock', 1],
-  [6, 7, 'rock_cluster', 1],
-  [2, 11, 'rock', 4],
-  [16, 4, 'rock', 2],
-  [4, 0, 'rock_cluster', 1],
-  [9, 11, 'rock', 3],
-  [0, 7, 'rock', 5],
-  // 4 bushes
-  [5, 11, 'bush', 2],
-  [14, 0, 'bush_round', 1],
-  [17, 7, 'bush', 4],
-  [3, 4, 'bush_round', 1],
-  // 3 flowers/grass
-  [10, 1, 'flower', 3],
-  [7, 10, 'flower', 7],
-  [15, 9, 'grass_decor', 2],
-  // 2 campfires
-  [12, 11, 'campfire', 1],
-  [1, 10, 'campfire', 2],
-];
+function generateDecorations(pathCells: Set<string>, powerSpots: Set<string>, mapId: MapId): DecorationPlacement[] {
+  const cached = decorationCache.get(mapId);
+  if (cached) return cached;
+
+  const seed = stringSeed(mapId);
+  const pathEntries = [...pathCells].map(parseCellKey);
+  const candidates: Array<{ col: number; row: number; edgeDist: number; pathDist: number }> = [];
+
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = `${col},${row}`;
+      if (pathCells.has(key) || powerSpots.has(key)) continue;
+      const edgeDist = Math.min(col, row, GRID_COLS - 1 - col, GRID_ROWS - 1 - row);
+      let pathDist = 99;
+      for (const [pc, pr] of pathEntries) {
+        pathDist = Math.min(pathDist, Math.abs(pc - col) + Math.abs(pr - row));
+      }
+      candidates.push({ col, row, edgeDist, pathDist });
+    }
+  }
+
+  const placements: DecorationPlacement[] = [];
+  const reserved: Array<{ col: number; row: number; radius: number }> = [];
+
+  const hasSpace = (col: number, row: number, radius: number) => {
+    for (const slot of reserved) {
+      const dist = Math.abs(slot.col - col) + Math.abs(slot.row - row);
+      if (dist <= slot.radius + radius) return false;
+    }
+    return true;
+  };
+
+  const orderedCandidates = (salt: number) =>
+    [...candidates].sort(
+      (a, b) => seededUnit(seed, a.col, a.row, salt) - seededUnit(seed, b.col, b.row, salt)
+    );
+
+  const placeBatch = (
+    count: number,
+    radius: number,
+    salt: number,
+    filter: (cell: { col: number; row: number; edgeDist: number; pathDist: number }) => boolean,
+    makePlacement: (cell: { col: number; row: number; edgeDist: number; pathDist: number }) => DecorationPlacement
+  ) => {
+    let added = 0;
+    for (const cell of orderedCandidates(salt)) {
+      if (added >= count) break;
+      if (!filter(cell) || !hasSpace(cell.col, cell.row, radius)) continue;
+      placements.push(makePlacement(cell));
+      reserved.push({ col: cell.col, row: cell.row, radius });
+      added++;
+    }
+  };
+
+  const placePreferredBatch = (
+    count: number,
+    radius: number,
+    salt: number,
+    filter: (cell: { col: number; row: number; edgeDist: number; pathDist: number }) => boolean,
+    score: (cell: { col: number; row: number; edgeDist: number; pathDist: number }) => number,
+    makePlacement: (cell: { col: number; row: number; edgeDist: number; pathDist: number }) => DecorationPlacement
+  ) => {
+    const ranked = [...candidates]
+      .filter(filter)
+      .sort((a, b) => {
+        const diff = score(b) - score(a);
+        if (Math.abs(diff) > 0.0001) return diff;
+        return seededUnit(seed, a.col, a.row, salt) - seededUnit(seed, b.col, b.row, salt);
+      });
+
+    let added = 0;
+    for (const cell of ranked) {
+      if (added >= count) break;
+      if (!hasSpace(cell.col, cell.row, radius)) continue;
+      placements.push(makePlacement(cell));
+      reserved.push({ col: cell.col, row: cell.row, radius });
+      added++;
+    }
+  };
+
+  placeBatch(
+    4,
+    2,
+    11,
+    cell => cell.pathDist >= 2 && cell.edgeDist >= 1,
+    cell => [cell.col, cell.row, 'ruin', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 13) * 5)]
+  );
+
+  placePreferredBatch(
+    8,
+    3,
+    21,
+    cell => cell.edgeDist <= 1 && cell.pathDist >= 3,
+    cell => {
+      const cornerBias = Math.max(
+        0,
+        6 - Math.min(
+          cell.col + cell.row,
+          (GRID_COLS - 1 - cell.col) + cell.row,
+          cell.col + (GRID_ROWS - 1 - cell.row),
+          (GRID_COLS - 1 - cell.col) + (GRID_ROWS - 1 - cell.row)
+        )
+      );
+      return cornerBias * 3 + cell.pathDist * 0.4 - cell.edgeDist;
+    },
+    cell => [
+      cell.col,
+      cell.row,
+      seededUnit(seed, cell.col, cell.row, 22) > 0.4 ? 'special_tree' : 'tree',
+      1 + Math.floor(seededUnit(seed, cell.col, cell.row, 23) * SPECIAL_TREE_NAMES.length),
+    ]
+  );
+
+  placePreferredBatch(
+    8,
+    2,
+    26,
+    cell => cell.edgeDist <= 2 && cell.pathDist >= 2,
+    cell => cell.pathDist * 0.6 + (2 - Math.min(cell.edgeDist, 2)) * 1.8,
+    cell => [
+      cell.col,
+      cell.row,
+      'tree',
+      1 + Math.floor(seededUnit(seed, cell.col, cell.row, 27) * 3),
+    ]
+  );
+
+  placePreferredBatch(
+    4,
+    2,
+    29,
+    cell => cell.edgeDist >= 1 && cell.edgeDist <= 3 && cell.pathDist >= 4,
+    cell => cell.pathDist - cell.edgeDist * 0.4,
+    cell => [
+      cell.col,
+      cell.row,
+      'special_tree',
+      1 + Math.floor(seededUnit(seed, cell.col, cell.row, 30) * SPECIAL_TREE_NAMES.length),
+    ]
+  );
+
+  placeBatch(
+    12,
+    1,
+    31,
+    cell => cell.pathDist >= 1,
+    cell => [cell.col, cell.row, 'rock', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 33) * 15)]
+  );
+
+  placeBatch(
+    8,
+    1,
+    41,
+    cell => cell.pathDist >= 2 && cell.edgeDist >= 1,
+    cell => [cell.col, cell.row, seededUnit(seed, cell.col, cell.row, 42) > 0.52 ? 'campfire' : 'flag', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 43) * 2)]
+  );
+
+  placeBatch(
+    8,
+    0,
+    51,
+    cell => cell.pathDist >= 1,
+    cell => [cell.col, cell.row, 'bush', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 52) * 6)]
+  );
+
+  placeBatch(
+    8,
+    0,
+    61,
+    cell => cell.pathDist >= 1,
+    cell => [cell.col, cell.row, 'flower', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 62) * 12)]
+  );
+
+  placeBatch(
+    7,
+    0,
+    71,
+    cell => cell.pathDist >= 1,
+    cell => [cell.col, cell.row, 'grass_decor', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 72) * 6)]
+  );
+
+  placeBatch(
+    4,
+    1,
+    81,
+    cell => cell.pathDist >= 2,
+    cell => [cell.col, cell.row, 'stone', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 82) * 5)]
+  );
+
+  placeBatch(
+    3,
+    1,
+    91,
+    cell => cell.pathDist >= 2 && cell.edgeDist >= 1,
+    cell => [cell.col, cell.row, 'camp', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 92) * 4)]
+  );
+
+  placeBatch(
+    4,
+    1,
+    101,
+    cell => cell.pathDist >= 2,
+    cell => [cell.col, cell.row, 'decor', 1 + Math.floor(seededUnit(seed, cell.col, cell.row, 102) * 7)]
+  );
+
+  const sorted = placements.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  decorationCache.set(mapId, sorted);
+  return sorted;
+}
 
 function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string>, powerSpots: Set<string>, mapId: MapId) {
   const animTime = getAnimTime();
+  const decorations = generateDecorations(pathCells, powerSpots, mapId);
 
-  for (const [col, row, type, variant] of DECORATION_PLACEMENTS) {
+  for (const [col, row, type, variant] of decorations) {
     const key = `${col},${row}`;
     if (pathCells.has(key) || powerSpots.has(key)) continue;
     const x = col * CELL_SIZE + CELL_SIZE / 2;
@@ -275,13 +512,23 @@ function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string
       } else {
         drawTreeProcedural(ctx, x, y);
       }
+    } else if (type === 'special_tree') {
+      const treeName = SPECIAL_TREE_NAMES[(variant - 1) % SPECIAL_TREE_NAMES.length];
+      const treeSprite = getSpecialTreeSprite(treeName);
+      if (treeSprite) {
+        const tw = CELL_SIZE * 1.28;
+        const aspect = treeSprite.naturalHeight / treeSprite.naturalWidth;
+        const th = tw * aspect;
+        ctx.drawImage(treeSprite, x - tw / 2, cellY + CELL_SIZE - th, tw, th);
+      } else {
+        drawTreeProcedural(ctx, x, y);
+      }
     } else if (type === 'rock') {
-      // variant 1-5 picks a rock type, size is medium (2-3)
       const rockType = ((variant - 1) % 5) + 1;
-      const rockSize = variant <= 2 ? 1 : variant <= 4 ? 2 : 3;
+      const rockSize = (variant % 5) + 1;
       const rockSprite = getRockSprite(rockType, rockSize);
       if (rockSprite) {
-        const rw = CELL_SIZE * (rockSize === 1 ? 1.0 : rockSize === 2 ? 0.8 : 0.6);
+        const rw = CELL_SIZE * (rockSize <= 2 ? 0.92 : rockSize === 3 ? 0.78 : 0.62);
         const aspect = rockSprite.naturalHeight / rockSprite.naturalWidth;
         const rh = rw * aspect;
         ctx.drawImage(rockSprite, x - rw / 2, cellY + CELL_SIZE - rh, rw, rh);
@@ -291,7 +538,7 @@ function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string
     } else if (type === 'bush') {
       const bushSprite = getBushSprite(variant);
       if (bushSprite) {
-        const bw = CELL_SIZE * 0.7;
+        const bw = CELL_SIZE * 0.72;
         const aspect = bushSprite.naturalHeight / bushSprite.naturalWidth;
         const bh = bw * aspect;
         ctx.drawImage(bushSprite, x - bw / 2, cellY + CELL_SIZE - bh, bw, bh);
@@ -299,7 +546,7 @@ function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string
     } else if (type === 'flower') {
       const flowerSprite = getFlowerSprite(variant);
       if (flowerSprite) {
-        const fw = CELL_SIZE * 0.5;
+        const fw = CELL_SIZE * 0.48;
         const aspect = flowerSprite.naturalHeight / flowerSprite.naturalWidth;
         const fh = fw * aspect;
         ctx.drawImage(flowerSprite, x - fw / 2, cellY + CELL_SIZE - fh, fw, fh);
@@ -324,60 +571,29 @@ function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string
       const cw = CELL_SIZE * 0.7;
       const ch = CELL_SIZE * 0.7;
       drawSpriteFrame(ctx, config, frameIndex, x - cw / 2, cellY + CELL_SIZE - ch, cw, ch);
-    } else if (type === 'pine_tree') {
-      const sprite = getPropSprite('pine_tree');
+    } else if (type === 'stone') {
+      const sprite = getStoneSprite(variant);
       if (sprite) {
-        // 142x159 — scale to ~1.4 cells wide
-        const pw = CELL_SIZE * 1.4;
-        const aspect = sprite.naturalHeight / sprite.naturalWidth;
-        const ph = pw * aspect;
-        ctx.drawImage(sprite, x - pw / 2, cellY + CELL_SIZE - ph, pw, ph);
-      } else {
-        drawTreeProcedural(ctx, x, y);
-      }
-    } else if (type === 'rock_cluster') {
-      const sprite = getPropSprite('rock_cluster');
-      if (sprite) {
-        const rw = CELL_SIZE * 1.1;
-        const aspect = sprite.naturalHeight / sprite.naturalWidth;
-        const rh = rw * aspect;
-        ctx.drawImage(sprite, x - rw / 2, cellY + CELL_SIZE - rh, rw, rh);
-      } else {
-        drawRockProcedural(ctx, x, y);
-      }
-    } else if (type === 'rock_bush_cluster') {
-      const sprite = getPropSprite('rock_bush_cluster');
-      if (sprite) {
-        const rw = CELL_SIZE * 1.2;
-        const aspect = sprite.naturalHeight / sprite.naturalWidth;
-        const rh = rw * aspect;
-        ctx.drawImage(sprite, x - rw / 2, cellY + CELL_SIZE - rh, rw, rh);
-      } else {
-        drawRockProcedural(ctx, x, y);
-      }
-    } else if (type === 'bush_round') {
-      const sprite = getPropSprite('bush_round');
-      if (sprite) {
-        const bw = CELL_SIZE * 0.9;
-        const aspect = sprite.naturalHeight / sprite.naturalWidth;
-        const bh = bw * aspect;
-        ctx.drawImage(sprite, x - bw / 2, cellY + CELL_SIZE - bh, bw, bh);
-      }
-    } else if (type === 'fence_segment') {
-      const sprite = getPropSprite('fence_segment');
-      if (sprite) {
-        const fw = CELL_SIZE * 1.1;
-        const aspect = sprite.naturalHeight / sprite.naturalWidth;
-        const fh = fw * aspect;
-        ctx.drawImage(sprite, x - fw / 2, cellY + CELL_SIZE - fh, fw, fh);
-      }
-    } else if (type === 'wooden_signpost') {
-      const sprite = getPropSprite('wooden_signpost');
-      if (sprite) {
-        const sw = CELL_SIZE * 0.85;
+        const sw = CELL_SIZE * 0.55;
         const aspect = sprite.naturalHeight / sprite.naturalWidth;
         const sh = sw * aspect;
         ctx.drawImage(sprite, x - sw / 2, cellY + CELL_SIZE - sh, sw, sh);
+      }
+    } else if (type === 'camp') {
+      const sprite = getCampSprite(variant);
+      if (sprite) {
+        const cw = CELL_SIZE * 0.92;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const ch = cw * aspect;
+        ctx.drawImage(sprite, x - cw / 2, cellY + CELL_SIZE - ch, cw, ch);
+      }
+    } else if (type === 'decor') {
+      const sprite = getDecorSprite(variant);
+      if (sprite) {
+        const dw = CELL_SIZE * 0.7;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const dh = dw * aspect;
+        ctx.drawImage(sprite, x - dw / 2, cellY + CELL_SIZE - dh, dw, dh);
       }
     }
   }
@@ -415,10 +631,10 @@ function drawMushroom(ctx: CanvasRenderingContext2D, x: number, y: number) {
 
 function drawPathArrows(ctx: CanvasRenderingContext2D, waypoints: Array<[number, number]>) {
   ctx.save();
-  ctx.globalAlpha = 0.6;
-  ctx.fillStyle = '#F5DEB3';
-  ctx.strokeStyle = '#8B7355';
-  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#f5e7bb';
+  ctx.strokeStyle = '#735a38';
+  ctx.lineWidth = 1.2;
   for (let i = 0; i < waypoints.length - 1; i++) {
     const [c1, r1] = waypoints[i];
     const [c2, r2] = waypoints[i + 1];
@@ -429,7 +645,12 @@ function drawPathArrows(ctx: CanvasRenderingContext2D, waypoints: Array<[number,
     ctx.translate(ax, ay);
     ctx.rotate(angle);
     ctx.beginPath();
-    ctx.moveTo(14, 0); ctx.lineTo(-10, -9); ctx.lineTo(-6, 0); ctx.lineTo(-10, 9);
+    ctx.roundRect(-14, -10, 28, 20, 7);
+    ctx.fillStyle = 'rgba(55, 40, 18, 0.24)';
+    ctx.fill();
+    ctx.fillStyle = '#f5e7bb';
+    ctx.beginPath();
+    ctx.moveTo(14, 0); ctx.lineTo(-10, -9); ctx.lineTo(-4, 0); ctx.lineTo(-10, 9);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -439,14 +660,23 @@ function drawPathArrows(ctx: CanvasRenderingContext2D, waypoints: Array<[number,
 }
 
 function drawEntryMarker(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const cx = x + CELL_SIZE / 2;
+  const cy = y + CELL_SIZE / 2;
   ctx.save();
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26);
+  glow.addColorStop(0, 'rgba(129, 199, 132, 0.6)');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = '#4CAF50';
-  ctx.strokeStyle = '#2E7D32';
+  ctx.strokeStyle = '#245c28';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(x + CELL_SIZE / 2 + 10, y + CELL_SIZE / 2);
-  ctx.lineTo(x + CELL_SIZE / 2 - 14, y + CELL_SIZE / 2 - 14);
-  ctx.lineTo(x + CELL_SIZE / 2 - 14, y + CELL_SIZE / 2 + 14);
+  ctx.moveTo(cx + 12, cy);
+  ctx.lineTo(cx - 12, cy - 14);
+  ctx.lineTo(cx - 12, cy + 14);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -454,22 +684,33 @@ function drawEntryMarker(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.font = 'bold 12px serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('IN', x + CELL_SIZE / 2 - 4, y + CELL_SIZE / 2);
+  ctx.fillText('IN', cx - 3, cy);
   ctx.restore();
 }
 
 function drawExitMarker(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const cx = x + CELL_SIZE / 2;
+  const cy = y + CELL_SIZE / 2;
   ctx.save();
-  ctx.fillStyle = '#D32F2F';
-  ctx.strokeStyle = '#B71C1C';
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26);
+  glow.addColorStop(0, 'rgba(229, 115, 115, 0.52)');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#b93131';
+  ctx.strokeStyle = '#621818';
   ctx.lineWidth = 3;
-  ctx.fillRect(x + 6, y + 6, CELL_SIZE - 12, CELL_SIZE - 12);
-  ctx.strokeRect(x + 6, y + 6, CELL_SIZE - 12, CELL_SIZE - 12);
+  ctx.beginPath();
+  ctx.roundRect(x + 8, y + 8, CELL_SIZE - 16, CELL_SIZE - 16, 10);
+  ctx.fill();
+  ctx.stroke();
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 11px serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('EXIT', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+  ctx.fillText('EXIT', cx, cy);
   ctx.restore();
 }
 
@@ -539,7 +780,10 @@ function drawTower(ctx: CanvasRenderingContext2D, tower: Tower, selected: boolea
     case 'lightning':   drawStormTower(ctx, x, y, tower.level, anim); break;
     case 'poison':      drawPoisonTower(ctx, x, y, tower.level, anim); break;
     case 'infantry':    drawInfantryBarracks(ctx, x, y, tower.level); break;
+    case 'archer_barracks': drawArcherBarracks(ctx, x, y, tower.level); break;
+    case 'pikeman_barracks': drawPikemanHall(ctx, x, y, tower.level); break;
     case 'hero':        drawHeroAltarWithSprite(ctx, x, y, tower.level, animTime); break;
+    case 'paladin_shrine': drawPaladinShrine(ctx, x, y, tower.level, animTime); break;
     case 'beastmaster': drawBeastDen(ctx, x, y, tower.level); break;
     case 'necromancer': drawNecromancerCrypt(ctx, x, y, tower.level, anim); break;
     case 'catapult':    drawCatapult(ctx, x, y, tower.level, anim); break;
@@ -765,6 +1009,302 @@ function drawInfantryBarracks(ctx: CanvasRenderingContext2D, x: number, y: numbe
   }
 }
 
+function drawPathBoundaries(ctx: CanvasRenderingContext2D, pathCells: Set<string>) {
+  const horizontalFence = getFenceSprite(1) || getFenceSprite(3) || getFenceSprite(4);
+  const verticalFence = getFenceSprite(7) || getFenceSprite(8) || getFenceSprite(10);
+  const cornerPost = getFenceSprite(9) || getFenceSprite(6) || getFenceSprite(5);
+
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = `${col},${row}`;
+      if (!pathCells.has(key)) continue;
+
+      const isEntryOrExit =
+        row === 0 || col === 0 || row === GRID_ROWS - 1 || col === GRID_COLS - 1;
+      if (isEntryOrExit) continue;
+
+      const x = col * CELL_SIZE;
+      const y = row * CELL_SIZE;
+      const top = pathCells.has(`${col},${row - 1}`);
+      const right = pathCells.has(`${col + 1},${row}`);
+      const bottom = pathCells.has(`${col},${row + 1}`);
+      const left = pathCells.has(`${col - 1},${row}`);
+
+      ctx.save();
+      ctx.globalAlpha = 0.95;
+
+      if (horizontalFence) {
+        if (!top) drawBoundarySegment(ctx, horizontalFence, x + CELL_SIZE / 2, y + 7, 0, CELL_SIZE * 0.86, CELL_SIZE * 0.22);
+        if (!bottom) drawBoundarySegment(ctx, horizontalFence, x + CELL_SIZE / 2, y + CELL_SIZE - 7, 0, CELL_SIZE * 0.86, CELL_SIZE * 0.22);
+      }
+
+      if (verticalFence) {
+        if (!left) drawBoundarySegment(ctx, verticalFence, x + 7, y + CELL_SIZE / 2, 0, CELL_SIZE * 0.2, CELL_SIZE * 0.86);
+        if (!right) drawBoundarySegment(ctx, verticalFence, x + CELL_SIZE - 7, y + CELL_SIZE / 2, 0, CELL_SIZE * 0.2, CELL_SIZE * 0.86);
+      }
+
+      if (cornerPost) {
+        if (!top && !left) drawBoundaryCorner(ctx, cornerPost, x + 8, y + 8, 0);
+        if (!top && !right) drawBoundaryCorner(ctx, cornerPost, x + CELL_SIZE - 8, y + 8, 0);
+        if (!bottom && !right) drawBoundaryCorner(ctx, cornerPost, x + CELL_SIZE - 8, y + CELL_SIZE - 8, 0);
+        if (!bottom && !left) drawBoundaryCorner(ctx, cornerPost, x + 8, y + CELL_SIZE - 8, 0);
+      }
+
+      ctx.restore();
+    }
+  }
+}
+
+function drawBoundarySegment(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  rotation: number,
+  w: number,
+  h: number
+) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+  ctx.restore();
+}
+
+function drawBoundaryCorner(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  rotation: number
+) {
+  const size = CELL_SIZE * 0.18;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.drawImage(img, -size / 2, -size / 2, size, size);
+  ctx.restore();
+}
+
+function drawGrassCellDetail(
+  ctx: CanvasRenderingContext2D,
+  col: number,
+  row: number,
+  x: number,
+  y: number,
+  palette: MapPalette,
+  mapSeed: number,
+  isPowerSpot: boolean
+) {
+  const lightMix = seededUnit(mapSeed, col, row, 1);
+  const patchMix = seededUnit(mapSeed, col, row, 2);
+
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  const tint = ctx.createLinearGradient(x, y, x + CELL_SIZE, y + CELL_SIZE);
+  tint.addColorStop(0, lightMix > 0.5 ? palette.meadowTint : palette.meadowBlade);
+  tint.addColorStop(1, palette.meadowShade);
+  ctx.fillStyle = tint;
+  ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+
+  ctx.globalAlpha = isPowerSpot ? 0.26 : 0.2;
+  ctx.fillStyle = palette.meadowBlade;
+  for (let i = 0; i < 4; i++) {
+    const px = x + 10 + i * 11 + seededUnit(mapSeed, col, row, 10 + i) * 4;
+    const py = y + 20 + seededUnit(mapSeed, col, row, 20 + i) * 24;
+    ctx.beginPath();
+    ctx.moveTo(px, py + 8);
+    ctx.quadraticCurveTo(px + 1, py + 2, px + (i % 2 === 0 ? 3 : -2), py - 3);
+    ctx.strokeStyle = palette.meadowBlade;
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+  }
+
+  if (patchMix > 0.68 && !isPowerSpot) {
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = palette.meadowBloom;
+    for (let i = 0; i < 3; i++) {
+      const px = x + 16 + i * 6 + seededUnit(mapSeed, col, row, 31 + i) * 4;
+      const py = y + 18 + seededUnit(mapSeed, col, row, 41 + i) * 20;
+      ctx.beginPath();
+      ctx.arc(px, py, 1.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawPathCellDetail(
+  ctx: CanvasRenderingContext2D,
+  col: number,
+  row: number,
+  x: number,
+  y: number,
+  palette: MapPalette,
+  mapSeed: number
+) {
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  const wash = ctx.createLinearGradient(x, y, x + CELL_SIZE, y + CELL_SIZE);
+  wash.addColorStop(0, palette.pathDust);
+  wash.addColorStop(1, palette.pathShade);
+  ctx.fillStyle = wash;
+  ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = palette.pathDust;
+  ctx.beginPath();
+  ctx.ellipse(x + CELL_SIZE / 2, y + CELL_SIZE / 2, CELL_SIZE * 0.28, CELL_SIZE * 0.18, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = palette.pathShade;
+  for (let i = 0; i < 4; i++) {
+    const px = x + 9 + i * 12 + seededUnit(mapSeed, col, row, 51 + i) * 3;
+    const py = y + 10 + seededUnit(mapSeed, col, row, 61 + i) * 36;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.8 + seededUnit(mapSeed, col, row, 71 + i), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPowerSpotPad(ctx: CanvasRenderingContext2D, x: number, y: number, palette: MapPalette) {
+  const cx = x + CELL_SIZE / 2;
+  const cy = y + CELL_SIZE / 2;
+  const pulse = 0.32 + Math.sin(Date.now() / 450) * 0.08;
+
+  ctx.save();
+  ctx.globalAlpha = pulse;
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, CELL_SIZE * 0.65);
+  glow.addColorStop(0, palette.powerGlow);
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, CELL_SIZE * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  const placementSprite = getPlacementSprite(2) || getPlacementSprite(1);
+  if (placementSprite) {
+    ctx.globalAlpha = 0.72;
+    ctx.drawImage(placementSprite, x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+  }
+
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = palette.powerCore;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, CELL_SIZE * 0.28, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = palette.powerCore;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 6);
+  ctx.lineTo(cx + 6, cy);
+  ctx.lineTo(cx, cy + 6);
+  ctx.lineTo(cx - 6, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawPathEdges(ctx: CanvasRenderingContext2D, pathCells: Set<string>, palette: MapPalette) {
+  const shoulder = 10;
+
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = `${col},${row}`;
+      if (!pathCells.has(key)) continue;
+      const x = col * CELL_SIZE;
+      const y = row * CELL_SIZE;
+
+      const drawShoulder = (dx: number, dy: number) => {
+        const neighbor = `${col + dx},${row + dy}`;
+        if (pathCells.has(neighbor)) return;
+
+        let grad: CanvasGradient;
+        if (dx === -1) {
+          grad = ctx.createLinearGradient(x, 0, x + shoulder, 0);
+          grad.addColorStop(0, palette.pathShade);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, shoulder, CELL_SIZE);
+        } else if (dx === 1) {
+          grad = ctx.createLinearGradient(x + CELL_SIZE, 0, x + CELL_SIZE - shoulder, 0);
+          grad.addColorStop(0, palette.pathShade);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x + CELL_SIZE - shoulder, y, shoulder, CELL_SIZE);
+        } else if (dy === -1) {
+          grad = ctx.createLinearGradient(0, y, 0, y + shoulder);
+          grad.addColorStop(0, palette.pathShade);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, CELL_SIZE, shoulder);
+        } else {
+          grad = ctx.createLinearGradient(0, y + CELL_SIZE, 0, y + CELL_SIZE - shoulder);
+          grad.addColorStop(0, palette.pathShade);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y + CELL_SIZE - shoulder, CELL_SIZE, shoulder);
+        }
+      };
+
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      drawShoulder(-1, 0);
+      drawShoulder(1, 0);
+      drawShoulder(0, -1);
+      drawShoulder(0, 1);
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, CELL_SIZE - 1, CELL_SIZE - 1);
+      ctx.restore();
+    }
+  }
+}
+
+function drawArcherBarracks(ctx: CanvasRenderingContext2D, x: number, y: number, level: number) {
+  drawInfantryBarracks(ctx, x, y, level);
+  ctx.fillStyle = '#2E7D32';
+  ctx.fillRect(x - 18, y - 14, 36, 5);
+  ctx.strokeStyle = '#8D6E63';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x, y - 4, 6, Math.PI * 0.65, Math.PI * 1.35);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y - 7);
+  ctx.lineTo(x + 9, y - 12);
+  ctx.stroke();
+}
+
+function drawPikemanHall(ctx: CanvasRenderingContext2D, x: number, y: number, level: number) {
+  drawInfantryBarracks(ctx, x, y, level);
+  ctx.fillStyle = '#90A4AE';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 24);
+  ctx.lineTo(x - 18, y - 14);
+  ctx.lineTo(x + 18, y - 14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#CFD8DC';
+  ctx.fillRect(x - 2, y - 28, 4, 22);
+  ctx.fillStyle = '#FFD54F';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 32);
+  ctx.lineTo(x - 4, y - 24);
+  ctx.lineTo(x + 4, y - 24);
+  ctx.closePath();
+  ctx.fill();
+}
+
 function drawHeroAltarWithSprite(ctx: CanvasRenderingContext2D, x: number, y: number, level: number, animTime: number) {
   // Try to draw knight_hero sprite as the hero altar visual
   const heroImg = getCharacterSprite('knight_hero');
@@ -832,6 +1372,36 @@ function drawHeroAltar(ctx: CanvasRenderingContext2D, x: number, y: number, _lev
   ctx.font = '8px serif';
   ctx.textAlign = 'center';
   ctx.fillText('✦ ✦ ✦', x, y + 10);
+}
+
+function drawPaladinShrine(ctx: CanvasRenderingContext2D, x: number, y: number, _level: number, animTime: number) {
+  const grad = ctx.createLinearGradient(x - 16, y - 8, x + 16, y + 18);
+  grad.addColorStop(0, '#FFF8E1');
+  grad.addColorStop(1, '#D4AF37');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(x - 16, y + 16);
+  ctx.lineTo(x - 18, y - 2);
+  ctx.lineTo(x - 10, y - 10);
+  ctx.lineTo(x + 10, y - 10);
+  ctx.lineTo(x + 18, y - 2);
+  ctx.lineTo(x + 16, y + 16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#B71C1C';
+  ctx.fillRect(x - 3, y - 20, 6, 24);
+  ctx.fillRect(x - 10, y - 10, 20, 6);
+  const glow = 0.25 + Math.sin(animTime * Math.PI * 2) * 0.1;
+  ctx.save();
+  ctx.globalAlpha = glow;
+  const g = ctx.createRadialGradient(x, y - 8, 0, x, y - 8, 26);
+  g.addColorStop(0, '#FFF59D');
+  g.addColorStop(1, 'transparent');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y - 8, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawBeastDen(ctx: CanvasRenderingContext2D, x: number, y: number, _level: number) {
@@ -1591,23 +2161,87 @@ function drawAlliedUnits(ctx: CanvasRenderingContext2D, units: AlliedUnit[]) {
 }
 
 function drawAlliedUnit(ctx: CanvasRenderingContext2D, unit: AlliedUnit) {
-  const { x, y, type, walkCycle, facingLeft, hp, maxHp } = unit;
-
-  ctx.save();
-  if (facingLeft) {
-    ctx.scale(-1, 1);
-    ctx.translate(-x * 2, 0);
-  }
+  const { x, y, type, walkCycle, facingLeft, hp, maxHp, moveAngle } = unit;
+  const animTime = (walkCycle || 0) * 6;
 
   switch (type) {
-    case 'soldier':  drawSoldierUnit(ctx, x, y, walkCycle || 0); break;
-    case 'hero':     drawHeroUnitWithSprite(ctx, x, y, walkCycle || 0); break;
-    case 'wolf':     drawWolfUnit(ctx, x, y, walkCycle || 0); break;
-    case 'golem':    drawGolemUnit(ctx, x, y, walkCycle || 0); break;
-    case 'skeleton': drawSkeletonUnit(ctx, x, y, walkCycle || 0); break;
+    case 'hero': {
+      const drawn = drawPixelLabCharacterByAngle(ctx, 'hero_sword', x, y, moveAngle || 0, 48, null, animTime);
+      if (!drawn) {
+        ctx.save();
+        if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+        drawHeroUnit(ctx, x, y, walkCycle || 0);
+        ctx.restore();
+      }
+      break;
+    }
+    case 'soldier': {
+      const drawn = drawPixelLabCharacterByAngle(ctx, 'infantry', x, y, moveAngle || 0, 48, null, animTime);
+      if (!drawn) {
+        ctx.save();
+        if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+        drawSoldierUnit(ctx, x, y, walkCycle || 0);
+        ctx.restore();
+      }
+      break;
+    }
+    case 'wolf': {
+      const drawn = drawPixelLabCharacterByAngle(ctx, 'wolf', x, y, moveAngle || 0, 48, null, animTime);
+      if (!drawn) {
+        ctx.save();
+        if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+        drawWolfUnit(ctx, x, y, walkCycle || 0);
+        ctx.restore();
+      }
+      break;
+    }
+    case 'skeleton': {
+      const drawn = drawPixelLabCharacterByAngle(ctx, 'skeleton', x, y, moveAngle || 0, 48, null, animTime);
+      if (!drawn) {
+        ctx.save();
+        if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+        drawSkeletonUnit(ctx, x, y, walkCycle || 0);
+        ctx.restore();
+      }
+      break;
+    }
+    case 'golem':
+      ctx.save();
+      if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+      drawGolemUnit(ctx, x, y, walkCycle || 0);
+      ctx.restore();
+      break;
+    case 'archer': {
+      const drawn = drawPixelLabCharacterByAngle(ctx, 'archer', x, y, moveAngle || 0, 48, null, animTime);
+      if (!drawn) {
+        ctx.save();
+        if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+        drawArcherUnit(ctx, x, y, walkCycle || 0);
+        ctx.restore();
+      }
+      break;
+    }
+    case 'pikeman': {
+      const drawn = drawPixelLabCharacterByAngle(ctx, 'pikeman', x, y, moveAngle || 0, 48, null, animTime);
+      if (!drawn) {
+        ctx.save();
+        if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+        drawPikemanUnit(ctx, x, y, walkCycle || 0);
+        ctx.restore();
+      }
+      break;
+    }
+    case 'paladin': {
+      const drawn = drawPixelLabCharacterByAngle(ctx, 'paladin', x, y, moveAngle || 0, 48, null, animTime);
+      if (!drawn) {
+        ctx.save();
+        if (facingLeft) { ctx.scale(-1, 1); ctx.translate(-x * 2, 0); }
+        drawPaladinUnit(ctx, x, y, walkCycle || 0);
+        ctx.restore();
+      }
+      break;
+    }
   }
-
-  ctx.restore();
 
   if (hp < maxHp) {
     const barW = 24;
@@ -1737,6 +2371,57 @@ function drawSkeletonUnit(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.fillStyle = '#212121';
   ctx.beginPath(); ctx.arc(x - 2.5, y - 13 - bob, 2, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(x + 2.5, y - 13 - bob, 2, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawArcherUnit(ctx: CanvasRenderingContext2D, x: number, y: number, wc: number) {
+  const bob = bodyBob(wc);
+  ctx.fillStyle = '#228B22';
+  ctx.fillRect(x - 4, y + 6 + legOffset(wc, 'left'), 3, 10);
+  ctx.fillRect(x + 1, y + 6 + legOffset(wc, 'right'), 3, 10);
+  ctx.fillStyle = '#32CD32';
+  ctx.beginPath(); ctx.ellipse(x, y - bob, 6, 8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8B4513';
+  ctx.beginPath();
+  ctx.moveTo(x + 8, y + 6 - bob); ctx.lineTo(x + 14, y - 18 - bob);
+  ctx.stroke();
+  ctx.fillStyle = '#FFE4B5';
+  ctx.beginPath(); ctx.arc(x, y - 11 - bob, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#228B22';
+  ctx.beginPath(); ctx.arc(x, y - 13 - bob, 6, Math.PI, 0); ctx.fill();
+}
+
+function drawPikemanUnit(ctx: CanvasRenderingContext2D, x: number, y: number, wc: number) {
+  const bob = bodyBob(wc);
+  ctx.fillStyle = '#708090';
+  ctx.fillRect(x - 5, y + 6 + legOffset(wc, 'left'), 4, 11);
+  ctx.fillRect(x + 1, y + 6 + legOffset(wc, 'right'), 4, 11);
+  ctx.fillStyle = '#A9A9A9';
+  ctx.beginPath(); ctx.ellipse(x, y - bob, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#C0C0C0';
+  ctx.fillRect(x - 2, y - 24 - bob, 3, 24);
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath(); ctx.arc(x - 0.5, y - 24 - bob, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#FFE4B5';
+  ctx.beginPath(); ctx.arc(x, y - 12 - bob, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#708090';
+  ctx.beginPath(); ctx.arc(x, y - 14 - bob, 7, Math.PI, 0); ctx.fill();
+}
+
+function drawPaladinUnit(ctx: CanvasRenderingContext2D, x: number, y: number, wc: number) {
+  const bob = bodyBob(wc);
+  ctx.fillStyle = '#FFD700';
+  ctx.fillRect(x - 5, y + 6 + legOffset(wc, 'left'), 4, 11);
+  ctx.fillRect(x + 1, y + 6 + legOffset(wc, 'right'), 4, 11);
+  ctx.fillStyle = '#FFA500';
+  ctx.beginPath(); ctx.ellipse(x, y - bob, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath(); ctx.moveTo(x - 10, y - 6 - bob); ctx.lineTo(x - 14, y + 8 - bob); ctx.lineTo(x - 6, y + 6 - bob); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#C0C0C0';
+  ctx.fillRect(x + 4, y - 8 - bob, 3, 20);
+  ctx.fillStyle = '#FFE4B5';
+  ctx.beginPath(); ctx.arc(x, y - 12 - bob, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath(); ctx.arc(x, y - 14 - bob, 7, Math.PI, 0); ctx.fill();
 }
 
 // ============================================================
@@ -2068,7 +2753,10 @@ export function renderTowerPreview(ctx: CanvasRenderingContext2D, type: string, 
     case 'poison':      drawPoisonTower(ctx, sx, sy, 1, 0); break;
     case 'ballista':    drawBallistaTower(ctx, sx, sy, 1, 0); break;
     case 'infantry':    drawInfantryBarracks(ctx, sx, sy, 1); break;
+    case 'archer_barracks': drawArcherBarracks(ctx, sx, sy, 1); break;
+    case 'pikeman_barracks': drawPikemanHall(ctx, sx, sy, 1); break;
     case 'hero':        drawHeroAltar(ctx, sx, sy, 1); break;
+    case 'paladin_shrine': drawPaladinShrine(ctx, sx, sy, 1, 0); break;
     case 'beastmaster': drawBeastDen(ctx, sx, sy, 1); break;
     case 'necromancer': drawNecromancerCrypt(ctx, sx, sy, 1, 0); break;
     case 'catapult':    drawCatapult(ctx, sx, sy, 1, 0); break;

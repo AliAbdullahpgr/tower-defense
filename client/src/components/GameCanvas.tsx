@@ -104,23 +104,57 @@ export default function GameCanvas({ engine, state }: GameCanvasProps) {
   const cursor = state.selectedTowerType ? 'crosshair' : 'pointer';
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-      <canvas
-        ref={canvasRef}
-        width={canvasWidth}
-        height={canvasHeight}
-        onClick={handleClick}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        padding: '12px',
+        background: 'radial-gradient(circle at top, rgba(90,140,110,0.18), transparent 48%), linear-gradient(180deg, rgba(9,20,14,0.92), rgba(7,14,11,0.98))',
+      }}
+    >
+      <div
         style={{
-          cursor,
-          display: 'block',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: 'auto',
-          height: 'auto',
+          position: 'relative',
+          padding: '10px',
+          borderRadius: '24px',
+          background: 'linear-gradient(145deg, rgba(37,57,42,0.95), rgba(18,27,21,0.98))',
+          border: '1px solid rgba(166, 218, 173, 0.22)',
+          boxShadow: '0 24px 60px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.06)',
         }}
-      />
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: '6px',
+            borderRadius: '18px',
+            border: '1px solid rgba(244, 230, 184, 0.12)',
+            pointerEvents: 'none',
+          }}
+        />
+        <canvas
+          ref={canvasRef}
+          width={canvasWidth}
+          height={canvasHeight}
+          onClick={handleClick}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          style={{
+            cursor,
+            display: 'block',
+            maxWidth: '100%',
+            maxHeight: '100%',
+            width: 'auto',
+            height: 'auto',
+            borderRadius: '16px',
+            background: '#182416',
+            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.05), inset 0 12px 24px rgba(255,255,255,0.04)',
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -220,25 +254,60 @@ function drawPlacementPreview(
   const y = row * CELL_SIZE;
   const cx = x + CELL_SIZE / 2;
   const cy = y + CELL_SIZE / 2;
+  const pulse = 0.78 + Math.sin(Date.now() / 180) * 0.08;
+  const accent = canPlace ? '#c4f08c' : '#ff8a80';
+  const fill = canPlace ? 'rgba(135, 197, 94, 0.18)' : 'rgba(190, 60, 60, 0.18)';
 
   ctx.save();
-  ctx.globalAlpha = 0.55;
-  ctx.fillStyle = canPlace ? 'rgba(76,175,80,0.4)' : 'rgba(244,67,54,0.4)';
-  ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-  ctx.strokeStyle = canPlace ? '#4CAF50' : '#F44336';
-  ctx.lineWidth = 2.5;
-  ctx.strokeRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+  ctx.globalAlpha = 1;
+  const cellGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, CELL_SIZE * 0.75);
+  cellGlow.addColorStop(0, fill);
+  cellGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = cellGlow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, CELL_SIZE * 0.68, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.roundRect(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10, 12);
+  ctx.fill();
+
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 6, y + 6, CELL_SIZE - 12, CELL_SIZE - 12);
+
+  ctx.globalAlpha = pulse;
+  ctx.beginPath();
+  ctx.moveTo(cx, y + 11);
+  ctx.lineTo(x + CELL_SIZE - 11, cy);
+  ctx.lineTo(cx, y + CELL_SIZE - 11);
+  ctx.lineTo(x + 11, cy);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 6);
+  ctx.lineTo(cx + 6, cy);
+  ctx.lineTo(cx, cy + 6);
+  ctx.lineTo(cx - 6, cy);
+  ctx.closePath();
+  ctx.fill();
 
   if (canPlace && range > 0) {
-    ctx.globalAlpha = 0.18;
-    ctx.fillStyle = '#4CAF50';
+    ctx.globalAlpha = 0.14;
+    const rangeGlow = ctx.createRadialGradient(cx, cy, range * CELL_SIZE * 0.35, cx, cy, range * CELL_SIZE);
+    rangeGlow.addColorStop(0, 'rgba(196, 240, 140, 0.2)');
+    rangeGlow.addColorStop(1, 'rgba(196, 240, 140, 0.02)');
+    ctx.fillStyle = rangeGlow;
     ctx.beginPath();
     ctx.arc(cx, cy, range * CELL_SIZE, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 0.4;
-    ctx.strokeStyle = '#4CAF50';
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = accent;
     ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 4]);
+    ctx.setLineDash([8, 6]);
     ctx.beginPath();
     ctx.arc(cx, cy, range * CELL_SIZE, 0, Math.PI * 2);
     ctx.stroke();

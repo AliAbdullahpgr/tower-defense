@@ -91,9 +91,23 @@ export default function Home() {
   }, []);
 
   // All tower types in order for hotkey selection
-  const TOWER_HOTKEYS: import("../game/types").TowerType[] = [
-    'archer', 'mage', 'cannon', 'frost', 'lightning', 'poison', 'ballista',
-    'infantry', 'hero',
+  const TOWER_HOTKEYS: Array<[string, import("../game/types").TowerType]> = [
+    ['1', 'archer'],
+    ['2', 'mage'],
+    ['3', 'cannon'],
+    ['4', 'frost'],
+    ['5', 'lightning'],
+    ['6', 'poison'],
+    ['7', 'ballista'],
+    ['8', 'infantry'],
+    ['9', 'archer_barracks'],
+    ['0', 'pikeman_barracks'],
+    ['q', 'hero'],
+    ['w', 'paladin_shrine'],
+    ['e', 'beastmaster'],
+    ['r', 'necromancer'],
+    ['t', 'catapult'],
+    ['y', 'tesla'],
   ];
 
   useEffect(() => {
@@ -114,13 +128,10 @@ export default function Home() {
         engineRef.current?.pauseGame();
       }
 
-      // Tower hotkeys: 1-9
-      const num = parseInt(e.key);
-      if (num >= 1 && num <= 9 && num <= TOWER_HOTKEYS.length) {
-        const towerType = TOWER_HOTKEYS[num - 1];
+      const towerType = TOWER_HOTKEYS.find(([key]) => key === e.key.toLowerCase())?.[1];
+      if (towerType) {
         const currentState = engineRef.current?.getState();
         if (currentState?.gameState === 'playing') {
-          // Toggle: if already selected, deselect
           if (currentState.selectedTowerType === towerType) {
             engineRef.current?.selectTowerType(null);
           } else {
@@ -237,7 +248,7 @@ export default function Home() {
         }}
       >
         <span style={{ color: "#4a8a8a", fontFamily: "'Philosopher', serif" }}>
-          ESC: Deselect · Space/P: Pause · 1-9: Select Tower
+          ESC: Deselect · Space/P: Pause · 1-0, Q-Y: Select Tower
         </span>
         <span style={{ color: "#3a6a6a", fontFamily: "'Philosopher', serif" }}>
           Fantasy Tower Defense

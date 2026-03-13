@@ -21,8 +21,12 @@ const TOWER_CATEGORIES = [
     towers: ['archer', 'mage', 'cannon', 'frost', 'lightning', 'poison', 'ballista'] as TowerType[],
   },
   {
-    label: 'Allies',
-    towers: ['infantry', 'hero', 'beastmaster', 'necromancer'] as TowerType[],
+    label: 'Barracks',
+    towers: ['infantry', 'archer_barracks', 'pikeman_barracks', 'hero', 'paladin_shrine'] as TowerType[],
+  },
+  {
+    label: 'Summons',
+    towers: ['beastmaster', 'necromancer'] as TowerType[],
   },
   {
     label: 'Siege',
@@ -30,9 +34,23 @@ const TOWER_CATEGORIES = [
   },
 ];
 
-const TOWER_HOTKEY_MAP: Record<string, number> = {
-  archer: 1, mage: 2, cannon: 3, frost: 4, lightning: 5, poison: 6, ballista: 7,
-  infantry: 8, hero: 9,
+const TOWER_HOTKEY_MAP: Partial<Record<TowerType, string>> = {
+  archer: '1',
+  mage: '2',
+  cannon: '3',
+  frost: '4',
+  lightning: '5',
+  poison: '6',
+  ballista: '7',
+  infantry: '8',
+  archer_barracks: '9',
+  pikeman_barracks: '0',
+  hero: 'Q',
+  paladin_shrine: 'W',
+  beastmaster: 'E',
+  necromancer: 'R',
+  catapult: 'T',
+  tesla: 'Y',
 };
 
 const TARGETING_LABELS: Record<TargetingMode, string> = {

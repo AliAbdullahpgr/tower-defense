@@ -955,13 +955,16 @@ export class GameEngine {
   // ALLIED UNITS
   // ============================================================
 
-  private spawnAlliedUnit(tower: Tower, unitType: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton', spawnX?: number, spawnY?: number) {
+  private spawnAlliedUnit(tower: Tower, unitType: 'soldier' | 'hero' | 'wolf' | 'golem' | 'skeleton' | 'archer' | 'pikeman' | 'paladin', spawnX?: number, spawnY?: number) {
     const stats: Record<string, { hp: number; damage: number; speed: number; range: number; attackCooldown: number }> = {
-      soldier: { hp: 120, damage: 25, speed: 1.5, range: 40, attackCooldown: 1200 },
-      hero:    { hp: 400, damage: 80, speed: 2.0, range: 60, attackCooldown: 800 },
-      wolf:    { hp: 80,  damage: 35, speed: 2.8, range: 35, attackCooldown: 900 },
-      golem:   { hp: 300, damage: 50, speed: 0.8, range: 45, attackCooldown: 1500 },
-      skeleton:{ hp: 60,  damage: 20, speed: 1.8, range: 38, attackCooldown: 1000 },
+      soldier:  { hp: 120, damage: 25, speed: 1.5, range: 40, attackCooldown: 1200 },
+      hero:     { hp: 400, damage: 80, speed: 2.0, range: 60, attackCooldown: 800 },
+      wolf:     { hp: 80,  damage: 35, speed: 2.8, range: 35, attackCooldown: 900 },
+      golem:    { hp: 300, damage: 50, speed: 0.8, range: 45, attackCooldown: 1500 },
+      skeleton: { hp: 60,  damage: 20, speed: 1.8, range: 38, attackCooldown: 1000 },
+      archer:   { hp: 80,  damage: 30, speed: 1.6, range: 80, attackCooldown: 1000 },
+      pikeman:  { hp: 180, damage: 35, speed: 1.2, range: 45, attackCooldown: 1400 },
+      paladin:  { hp: 350, damage: 60, speed: 1.8, range: 55, attackCooldown: 900 },
     };
     const s = stats[unitType];
     const lvlBonus = 1 + (tower.level - 1) * 0.4;
@@ -983,6 +986,7 @@ export class GameEngine {
       alive: true,
       walkCycle: Math.random(),
       facingLeft: false,
+      moveAngle: 0,
       patrolX: tower.x,
       patrolY: tower.y,
       patrolRadius: tower.range * CELL_SIZE * 0.8,
@@ -1012,6 +1016,7 @@ export class GameEngine {
         const dy = nearestEnemy.y - unit.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         unit.facingLeft = dx < 0;
+        unit.moveAngle = Math.atan2(dy, dx) * (180 / Math.PI);
         unit.walkCycle = (unit.walkCycle + dt / 400) % 1;
 
         if (dist > unit.range) {
@@ -1039,6 +1044,7 @@ export class GameEngine {
           unit.y += (dy / dist) * moveSpeed;
           unit.walkCycle = (unit.walkCycle + dt / 500) % 1;
           unit.facingLeft = dx < 0;
+          unit.moveAngle = Math.atan2(dy, dx) * (180 / Math.PI);
           unit.returning = true;
         }
       }
