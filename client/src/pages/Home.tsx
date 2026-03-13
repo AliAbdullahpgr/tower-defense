@@ -15,6 +15,7 @@ import MenuScreen from "../components/MenuScreen";
 import GameOverlay from "../components/GameOverlay";
 import SettingsPanel from "../components/SettingsPanel";
 import { Music, SFX } from "../game/audio";
+import { gameUiFonts, gameUiTheme } from "../lib/game-ui-theme";
 
 // Singleton engine to avoid re-creation issues
 let globalEngine: GameEngine | null = null;
@@ -186,7 +187,7 @@ export default function Home() {
         width: "100vw",
         height: "100vh",
         overflow: "hidden",
-        background: "#0a1a1a",
+        background: gameUiTheme.page,
         display: "flex",
         flexDirection: "column",
       }}
@@ -237,20 +238,21 @@ export default function Home() {
       {/* Footer hint bar */}
       <div
         style={{
-          padding: "4px 16px",
+          padding: "8px 12px 10px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           fontSize: "10px",
-          background: "linear-gradient(90deg, #0a1a1a, #1a3a3a, #0a1a1a)",
-          borderTop: "1px solid #2a5a5a",
+          background: "linear-gradient(180deg, rgba(243,249,248,0.95), rgba(233,244,242,0.92))",
+          borderTop: `1px solid ${gameUiTheme.border}`,
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.55)",
           flexShrink: 0,
         }}
       >
-        <span style={{ color: "#4a8a8a", fontFamily: "'Philosopher', serif" }}>
+        <span style={{ color: gameUiTheme.muted, fontFamily: gameUiFonts.body }}>
           ESC: Deselect · Space/P: Pause · 1-0, Q-Y: Select Tower
         </span>
-        <span style={{ color: "#3a6a6a", fontFamily: "'Philosopher', serif" }}>
+        <span style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body }}>
           Fantasy Tower Defense
         </span>
       </div>

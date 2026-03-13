@@ -1575,7 +1575,7 @@ function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy) {
   const spriteDrawn = foozleDrawn || drawEnemySprite(
     ctx, enemy.type, x, y, size,
     animCycle,
-    dying, facingLeft, spriteDir
+    dying, facingLeft, spriteDir, moveAngle
   );
 
   if (!spriteDrawn) {

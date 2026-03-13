@@ -1,11 +1,18 @@
 // ============================================================
 // Fantasy Tower Defense — Settings Panel
-// Volume controls, mute toggle
+// Clean in-game UI revamp
 // ============================================================
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { SFX, Music } from '../game/audio';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Music, SFX } from "../game/audio";
+import {
+  buttonStyle,
+  gameUiFonts,
+  gameUiTheme,
+  panelStyle,
+  sectionTitleStyle,
+} from "../lib/game-ui-theme";
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -33,141 +40,88 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
   return (
     <div
       style={{
-        position: 'fixed',
+        position: "fixed",
         inset: 0,
         zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'rgba(0,0,0,0.6)',
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+        background: "rgba(7, 23, 25, 0.5)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
       }}
       onClick={onClose}
     >
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', duration: 0.3 }}
-        onClick={e => e.stopPropagation()}
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 180, damping: 18 }}
+        onClick={(event) => event.stopPropagation()}
         style={{
-          background: 'rgba(13,7,2,0.95)',
-          border: '2px solid #78350f',
-          borderRadius: '16px',
-          padding: '24px 32px',
-          minWidth: '300px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          ...panelStyle({ padding: "22px" }),
+          width: "min(380px, 100%)",
+          boxShadow: gameUiTheme.shadow,
         }}
       >
+        <div style={{ ...sectionTitleStyle(), fontSize: 24, textAlign: "center" }}>Settings</div>
         <div
           style={{
-            fontFamily: "'Uncial Antiqua', serif",
-            fontSize: '20px',
-            color: '#fbbf24',
-            textAlign: 'center',
-            marginBottom: '20px',
+            color: gameUiTheme.muted,
+            fontFamily: gameUiFonts.body,
+            fontSize: 12,
+            textAlign: "center",
+            marginTop: 6,
+            marginBottom: 18,
           }}
         >
-          Settings
+          Tune the audio without leaving the battle.
         </div>
 
-        {/* SFX Mute Toggle */}
-        <div style={{ marginBottom: '16px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '8px',
-            }}
-          >
-            <span
-              style={{
-                color: '#fde68a',
-                fontSize: '13px',
-                fontFamily: "'Philosopher', serif",
-              }}
-            >
-              Sound Effects
-            </span>
-            <button
-              onClick={handleToggleSfx}
-              style={{
-                padding: '4px 14px',
-                borderRadius: '6px',
-                border: sfxMuted ? '1px solid #991b1b' : '1px solid #22c55e',
-                background: sfxMuted ? 'rgba(127,29,29,0.4)' : 'rgba(22,101,52,0.4)',
-                color: sfxMuted ? '#fca5a5' : '#86efac',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                fontFamily: "'Philosopher', serif",
-              }}
-            >
-              {sfxMuted ? 'MUTED' : 'ON'}
-            </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ ...panelStyle({ padding: "14px" }), background: gameUiTheme.surfaceSoft }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div>
+                <div style={{ color: gameUiTheme.textStrong, fontFamily: gameUiFonts.body, fontSize: 14, fontWeight: 700 }}>
+                  Sound Effects
+                </div>
+                <div style={{ color: gameUiTheme.muted, fontFamily: gameUiFonts.body, fontSize: 11, marginTop: 3 }}>
+                  Tower placement, upgrades, impact sounds.
+                </div>
+              </div>
+              <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={handleToggleSfx} style={sfxMuted ? buttonStyle("danger") : buttonStyle("success")}>
+                {sfxMuted ? "Muted" : "On"}
+              </motion.button>
+            </div>
+          </div>
+
+          <div style={{ ...panelStyle({ padding: "14px" }), background: gameUiTheme.surfaceSoft }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div>
+                <div style={{ color: gameUiTheme.textStrong, fontFamily: gameUiFonts.body, fontSize: 14, fontWeight: 700 }}>
+                  Music Volume
+                </div>
+                <div style={{ color: gameUiTheme.muted, fontFamily: gameUiFonts.body, fontSize: 11, marginTop: 3 }}>
+                  Ambient soundtrack intensity.
+                </div>
+              </div>
+              <div style={{ color: gameUiTheme.accentStrong, fontFamily: gameUiFonts.numbers, fontSize: 14, fontWeight: 700 }}>
+                {Math.round(musicVolume * 100)}%
+              </div>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(musicVolume * 100)}
+              onChange={(event) => handleMusicVolume(Number(event.target.value) / 100)}
+              style={{ width: "100%", accentColor: gameUiTheme.accentStrong, cursor: "pointer" }}
+            />
           </div>
         </div>
 
-        {/* Music Volume */}
-        <div style={{ marginBottom: '20px' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '8px',
-            }}
-          >
-            <span
-              style={{
-                color: '#fde68a',
-                fontSize: '13px',
-                fontFamily: "'Philosopher', serif",
-              }}
-            >
-              Music Volume
-            </span>
-            <span
-              style={{
-                color: '#d97706',
-                fontSize: '11px',
-                fontFamily: "'Philosopher', serif",
-              }}
-            >
-              {Math.round(musicVolume * 100)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={Math.round(musicVolume * 100)}
-            onChange={e => handleMusicVolume(Number(e.target.value) / 100)}
-            style={{
-              width: '100%',
-              accentColor: '#fbbf24',
-              cursor: 'pointer',
-            }}
-          />
-        </div>
-
-        {/* Close button */}
-        <div style={{ textAlign: 'center' }}>
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onClose}
-            style={{
-              padding: '8px 28px',
-              fontSize: '13px',
-              fontWeight: 'bold',
-              color: '#fde68a',
-              borderRadius: '8px',
-              border: '2px solid #78350f',
-              background: 'rgba(45,26,8,0.8)',
-              cursor: 'pointer',
-              fontFamily: "'Philosopher', serif",
-            }}
-          >
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
+          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onClose} style={buttonStyle("accent")}>
             Done
           </motion.button>
         </div>

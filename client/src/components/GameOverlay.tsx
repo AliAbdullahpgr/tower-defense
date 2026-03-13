@@ -1,12 +1,19 @@
 // ============================================================
-// Fantasy Tower Defense — Game Overlay Screens (Mega Expansion)
-// Design: Painterly Storybook Fantasy
-// Features: Victory/Defeat with high score saving, stats display
+// Fantasy Tower Defense — Game Overlay Screens
+// Clean in-game UI revamp
 // ============================================================
 
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import type { GameEngineState } from '../game/engine';
+import { useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import type { GameEngineState } from "../game/engine";
+import {
+  buttonStyle,
+  gameUiFonts,
+  gameUiTheme,
+  metricValueStyle,
+  panelStyle,
+  sectionTitleStyle,
+} from "../lib/game-ui-theme";
 
 interface GameOverlayProps {
   state: GameEngineState;
@@ -28,35 +35,73 @@ interface HighScore {
 
 function saveHighScore(score: HighScore) {
   try {
-    const scores: HighScore[] = JSON.parse(localStorage.getItem('ftd_highscores') || '[]');
+    const scores: HighScore[] = JSON.parse(localStorage.getItem("ftd_highscores") || "[]");
     scores.push(score);
     scores.sort((a, b) => b.score - a.score);
-    localStorage.setItem('ftd_highscores', JSON.stringify(scores.slice(0, 20)));
-  } catch { /* ignore */ }
+    localStorage.setItem("ftd_highscores", JSON.stringify(scores.slice(0, 20)));
+  } catch {}
 }
 
-export default function GameOverlay({ state, onStart, onRestart, onReturnToMenu, onResume, onOpenSettings }: GameOverlayProps) {
-  const { gameState } = state;
-
+export default function GameOverlay({
+  state,
+  onRestart,
+  onReturnToMenu,
+  onResume,
+  onOpenSettings,
+}: GameOverlayProps) {
   return (
     <AnimatePresence>
-      {gameState === 'victory' && (
-        <VictoryScreen key="victory" state={state} onRestart={onRestart} onReturnToMenu={onReturnToMenu} />
-      )}
-      {gameState === 'defeat' && (
-        <DefeatScreen key="defeat" state={state} onRestart={onRestart} onReturnToMenu={onReturnToMenu} />
-      )}
-      {gameState === 'paused' && (
+      {state.gameState === "victory" ? (
+        <ResultScreen key="victory" state={state} mode="victory" onRestart={onRestart} onReturnToMenu={onReturnToMenu} />
+      ) : null}
+      {state.gameState === "defeat" ? (
+        <ResultScreen key="defeat" state={state} mode="defeat" onRestart={onRestart} onReturnToMenu={onReturnToMenu} />
+      ) : null}
+      {state.gameState === "paused" ? (
         <PauseScreen key="paused" onResume={onResume} onReturnToMenu={onReturnToMenu} onOpenSettings={onOpenSettings} />
-      )}
+      ) : null}
     </AnimatePresence>
   );
 }
 
-function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineState; onRestart: () => void; onReturnToMenu: () => void }) {
+function OverlayShell({ children }: { children: ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background: "rgba(7, 23, 25, 0.5)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function ResultScreen({
+  state,
+  mode,
+  onRestart,
+  onReturnToMenu,
+}: {
+  state: GameEngineState;
+  mode: "victory" | "defeat";
+  onRestart: () => void;
+  onReturnToMenu: () => void;
+}) {
   const { stats, mapId, difficulty } = state;
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
+  const win = mode === "victory";
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -71,446 +116,208 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
     setSaved(true);
   };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 20,
-        background: 'radial-gradient(ellipse at center, rgba(0,60,60,0.92) 0%, rgba(0,20,20,0.88) 100%)',
-        padding: '20px',
-      }}
-    >
-      <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', duration: 0.8 }}
-        style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}
-      >
-        <div style={{ fontSize: '56px', marginBottom: '8px', color: '#FFD700', fontFamily: 'serif' }}>Victory</div>
-        <h1
-          style={{
-            fontFamily: "'Uncial Antiqua', serif",
-            fontSize: '40px',
-            fontWeight: 'bold',
-            color: '#4dd0e1',
-            marginBottom: '6px',
-            textShadow: '0 0 30px rgba(77,208,225,0.5)',
-          }}
-        >
-          Victory!
-        </h1>
-        <p style={{ color: '#a7f3d0', fontSize: '14px', marginBottom: '20px', fontFamily: "'Philosopher', serif" }}>
-          The realm is saved! All {stats.totalWaves} waves defeated!
-        </p>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '10px',
-            marginBottom: '20px',
-          }}
-        >
-          <StatCard icon="" label="Final Score" value={stats.score.toLocaleString()} color="#a7f3d0" />
-          <StatCard icon="" label="Gold Remaining" value={`${stats.gold}g`} color="#4dd0e1" />
-          <StatCard icon="" label="Enemies Slain" value={stats.enemiesKilled} color="#86efac" />
-          <StatCard icon="" label="Towers Built" value={stats.towersPlaced} color="#93c5fd" />
-          <StatCard icon="" label="Damage Dealt" value={stats.damageDealt.toLocaleString()} color="#fca5a5" />
-          <StatCard icon="" label="Waves Survived" value={stats.wavesSurvived} color="#c4b5fd" />
-        </div>
-
-        {/* High score save */}
-        {!saved ? (
-          <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <input
-              type="text"
-              placeholder="Enter your name..."
-              value={name}
-              onChange={e => setName(e.target.value)}
-              maxLength={20}
-              onKeyDown={e => e.key === 'Enter' && handleSave()}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: '1px solid #2a6a6a',
-                background: 'rgba(10,40,40,0.8)',
-                color: '#a7f3d0',
-                fontSize: '12px',
-                fontFamily: "'Philosopher', serif",
-                outline: 'none',
-              }}
-            />
-            <button
-              onClick={handleSave}
-              disabled={!name.trim()}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: '1px solid #4dd0e1',
-                background: name.trim() ? 'rgba(0,100,100,0.6)' : 'rgba(10,40,40,0.4)',
-                color: name.trim() ? '#4dd0e1' : '#2a6a6a',
-                fontSize: '11px',
-                cursor: name.trim() ? 'pointer' : 'not-allowed',
-                fontFamily: "'Philosopher', serif",
-              }}
-            >
-              Save Score
-            </button>
-          </div>
-        ) : (
-          <div style={{ color: '#86efac', fontSize: '12px', marginBottom: '16px' }}>
-            Score saved to Hall of Fame!
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onRestart}
-            style={{
-              padding: '12px 36px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#a7f3d0',
-              borderRadius: '10px',
-              border: '2px solid #4dd0e1',
-              background: 'linear-gradient(135deg, #0d5c5c, #0e7490)',
-              cursor: 'pointer',
-              fontFamily: "'Uncial Antiqua', serif",
-              boxShadow: '0 0 20px rgba(77,208,225,0.3)',
-            }}
-          >
-            Play Again
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onReturnToMenu}
-            style={{
-              padding: '12px 28px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#4dd0e1',
-              borderRadius: '10px',
-              border: '2px solid #2a6a6a',
-              background: 'rgba(10,40,40,0.8)',
-              cursor: 'pointer',
-              fontFamily: "'Philosopher', serif",
-            }}
-          >
-            Return to Menu
-          </motion.button>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineState; onRestart: () => void; onReturnToMenu: () => void }) {
-  const { stats, mapId, difficulty } = state;
-  const [name, setName] = useState('');
-  const [saved, setSaved] = useState(false);
-
-  const handleSave = () => {
-    if (!name.trim()) return;
-    saveHighScore({
-      name: name.trim(),
-      score: stats.score,
-      wave: stats.wave,
-      map: mapId,
-      difficulty,
-      date: new Date().toLocaleDateString(),
-    });
-    setSaved(true);
-  };
+  const statItems = win
+    ? [
+        ["Final Score", stats.score.toLocaleString(), gameUiTheme.textStrong],
+        ["Gold Remaining", `${stats.gold}g`, gameUiTheme.warning],
+        ["Enemies Slain", stats.enemiesKilled.toString(), gameUiTheme.success],
+        ["Towers Built", stats.towersPlaced.toString(), gameUiTheme.info],
+        ["Damage Dealt", stats.damageDealt.toLocaleString(), gameUiTheme.danger],
+        ["Waves Survived", stats.wavesSurvived.toString(), gameUiTheme.violet],
+      ]
+    : [
+        ["Wave Reached", `${stats.wave} / ${stats.totalWaves}`, gameUiTheme.danger],
+        ["Score", stats.score.toLocaleString(), gameUiTheme.textStrong],
+        ["Enemies Slain", stats.enemiesKilled.toString(), gameUiTheme.warning],
+        ["Towers Built", stats.towersPlaced.toString(), gameUiTheme.info],
+        ["Damage Dealt", stats.damageDealt.toLocaleString(), gameUiTheme.danger],
+        ["Gold Earned", `${stats.goldEarned}g`, gameUiTheme.warning],
+      ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 20,
-        background: 'radial-gradient(ellipse at center, rgba(60,20,20,0.92) 0%, rgba(20,5,5,0.9) 100%)',
-        padding: '20px',
-      }}
-    >
+    <OverlayShell>
       <motion.div
-        initial={{ y: -50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', duration: 0.8 }}
-        style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}
-      >
-        <div style={{ fontSize: '56px', marginBottom: '8px', color: '#f87171', fontFamily: 'serif' }}>Defeat</div>
-        <h1
-          style={{
-            fontFamily: "'Uncial Antiqua', serif",
-            fontSize: '40px',
-            fontWeight: 'bold',
-            color: '#f87171',
-            marginBottom: '6px',
-            textShadow: '0 0 30px rgba(239,68,68,0.5)',
-          }}
-        >
-          Defeated!
-        </h1>
-        <p style={{ color: '#fca5a5', fontSize: '14px', marginBottom: '20px', fontFamily: "'Philosopher', serif" }}>
-          The castle has fallen... The dark horde prevails.
-        </p>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '10px',
-            marginBottom: '20px',
-          }}
-        >
-          <StatCard icon="" label="Wave Reached" value={`${stats.wave} / ${stats.totalWaves}`} color="#fca5a5" />
-          <StatCard icon="" label="Score" value={stats.score.toLocaleString()} color="#a7f3d0" />
-          <StatCard icon="" label="Enemies Slain" value={stats.enemiesKilled} color="#fdba74" />
-          <StatCard icon="" label="Towers Built" value={stats.towersPlaced} color="#93c5fd" />
-          <StatCard icon="" label="Damage Dealt" value={stats.damageDealt.toLocaleString()} color="#fca5a5" />
-          <StatCard icon="" label="Gold Earned" value={`${stats.goldEarned}g`} color="#4dd0e1" />
-        </div>
-
-        {/* High score save */}
-        {!saved ? (
-          <div style={{ marginBottom: '16px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <input
-              type="text"
-              placeholder="Enter your name..."
-              value={name}
-              onChange={e => setName(e.target.value)}
-              maxLength={20}
-              onKeyDown={e => e.key === 'Enter' && handleSave()}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: '1px solid #6a2a2a',
-                background: 'rgba(40,20,20,0.8)',
-                color: '#a7f3d0',
-                fontSize: '12px',
-                fontFamily: "'Philosopher', serif",
-                outline: 'none',
-              }}
-            />
-            <button
-              onClick={handleSave}
-              disabled={!name.trim()}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '6px',
-                border: '1px solid #ef4444',
-                background: name.trim() ? 'rgba(100,20,20,0.6)' : 'rgba(40,20,20,0.4)',
-                color: name.trim() ? '#fca5a5' : '#6a2a2a',
-                fontSize: '11px',
-                cursor: name.trim() ? 'pointer' : 'not-allowed',
-                fontFamily: "'Philosopher', serif",
-              }}
-            >
-              Save Score
-            </button>
-          </div>
-        ) : (
-          <div style={{ color: '#86efac', fontSize: '12px', marginBottom: '16px' }}>
-            Score saved to Hall of Fame!
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onRestart}
-            style={{
-              padding: '12px 36px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#fca5a5',
-              borderRadius: '10px',
-              border: '2px solid #ef4444',
-              background: 'linear-gradient(135deg, #6a1a1a, #8a2a2a)',
-              cursor: 'pointer',
-              fontFamily: "'Uncial Antiqua', serif",
-              boxShadow: '0 0 20px rgba(239,68,68,0.3)',
-            }}
-          >
-            Try Again
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={onReturnToMenu}
-            style={{
-              padding: '12px 28px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#d97706',
-              borderRadius: '10px',
-              border: '2px solid #78350f',
-              background: 'rgba(45,26,8,0.8)',
-              cursor: 'pointer',
-              fontFamily: "'Philosopher', serif",
-            }}
-          >
-            Return to Menu
-          </motion.button>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-function PauseScreen({ onResume, onReturnToMenu, onOpenSettings }: { onResume: () => void; onReturnToMenu: () => void; onOpenSettings?: () => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 20,
-        background: 'rgba(0,0,0,0.65)',
-      }}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', duration: 0.4 }}
+        initial={{ y: 16, opacity: 0, scale: 0.98 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ type: "spring", stiffness: 180, damping: 18 }}
         style={{
-          textAlign: 'center',
-          background: 'rgba(13,7,2,0.95)',
-          border: '2px solid #78350f',
-          borderRadius: '16px',
-          padding: '32px 48px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+          ...panelStyle({ padding: "22px" }),
+          width: "min(560px, 100%)",
+          background: win ? gameUiTheme.surface : "rgba(250, 243, 244, 0.94)",
+          border: `1px solid ${win ? gameUiTheme.border : "rgba(214,109,120,0.22)"}`,
+          boxShadow: gameUiTheme.shadow,
         }}
       >
-        <div
-          style={{
-            fontFamily: "'Uncial Antiqua', serif",
-            fontSize: '36px',
-            fontWeight: 'bold',
-            color: '#fde68a',
-            textShadow: '0 2px 20px rgba(0,0,0,0.8)',
-            marginBottom: '20px',
-          }}
-        >
-          Paused
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              ...sectionTitleStyle(),
+              fontSize: 30,
+              color: win ? gameUiTheme.accentStrong : gameUiTheme.danger,
+            }}
+          >
+            {win ? "Victory" : "Defeat"}
+          </div>
+          <div
+            style={{
+              color: gameUiTheme.muted,
+              fontFamily: gameUiFonts.body,
+              fontSize: 13,
+              lineHeight: 1.5,
+              marginTop: 8,
+              marginBottom: 18,
+            }}
+          >
+            {win
+              ? `The realm is safe. You cleared all ${stats.totalWaves} waves.`
+              : "The defense line broke. Rebuild and try a better strategy."}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '200px' }}>
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onResume}
-            style={{
-              padding: '10px 24px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#86efac',
-              borderRadius: '8px',
-              border: '2px solid #22c55e',
-              background: 'linear-gradient(135deg, #166534, #15803d)',
-              cursor: 'pointer',
-              fontFamily: "'Philosopher', serif",
-            }}
-          >
-            Resume
-          </motion.button>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+          {statItems.map(([label, value, color]) => (
+            <StatCard key={label} label={label} value={String(value)} color={String(color)} />
+          ))}
+        </div>
 
-          {onOpenSettings && (
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={onOpenSettings}
+        <div style={{ marginTop: 18 }}>
+          {!saved ? (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                maxLength={20}
+                onChange={(event) => setName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleSave();
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 180,
+                  padding: "11px 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${gameUiTheme.borderStrong}`,
+                  background: gameUiTheme.surfaceStrong,
+                  color: gameUiTheme.textStrong,
+                  outline: "none",
+                  fontFamily: gameUiFonts.body,
+                  fontSize: 13,
+                }}
+              />
+              <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSave}
+                disabled={!name.trim()}
+                style={{
+                  ...buttonStyle("accent"),
+                  opacity: name.trim() ? 1 : 0.55,
+                  cursor: name.trim() ? "pointer" : "not-allowed",
+                }}
+              >
+                Save Score
+              </motion.button>
+            </div>
+          ) : (
+            <div
               style={{
-                padding: '10px 24px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                color: '#fde68a',
-                borderRadius: '8px',
-                border: '2px solid #78350f',
-                background: 'rgba(45,26,8,0.8)',
-                cursor: 'pointer',
-                fontFamily: "'Philosopher', serif",
+                ...panelStyle({ padding: "12px" }),
+                background: gameUiTheme.successSoft,
+                color: gameUiTheme.success,
+                fontFamily: gameUiFonts.body,
+                fontSize: 12,
+                textAlign: "center",
               }}
             >
+              Score saved to Hall of Fame.
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
+          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onRestart} style={buttonStyle(win ? "success" : "accent")}>
+            {win ? "Play Again" : "Try Again"}
+          </motion.button>
+          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onReturnToMenu} style={buttonStyle("ghost")}>
+            Return to Menu
+          </motion.button>
+        </div>
+      </motion.div>
+    </OverlayShell>
+  );
+}
+
+function PauseScreen({
+  onResume,
+  onReturnToMenu,
+  onOpenSettings,
+}: {
+  onResume: () => void;
+  onReturnToMenu: () => void;
+  onOpenSettings?: () => void;
+}) {
+  return (
+    <OverlayShell>
+      <motion.div
+        initial={{ y: 12, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 180, damping: 18 }}
+        style={{
+          ...panelStyle({ padding: "24px" }),
+          width: 320,
+          textAlign: "center",
+          boxShadow: gameUiTheme.shadow,
+        }}
+      >
+        <div style={{ ...sectionTitleStyle(), fontSize: 28 }}>Paused</div>
+        <div
+          style={{
+            color: gameUiTheme.muted,
+            fontFamily: gameUiFonts.body,
+            fontSize: 12,
+            marginTop: 8,
+            marginBottom: 18,
+          }}
+        >
+          Take a breath, then get back to the defense.
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onResume} style={buttonStyle("success")}>
+            Resume
+          </motion.button>
+          {onOpenSettings ? (
+            <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onOpenSettings} style={buttonStyle("soft")}>
               Settings
             </motion.button>
-          )}
-
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onReturnToMenu}
-            style={{
-              padding: '10px 24px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#fca5a5',
-              borderRadius: '8px',
-              border: '2px solid #991b1b',
-              background: 'rgba(127,29,29,0.6)',
-              cursor: 'pointer',
-              fontFamily: "'Philosopher', serif",
-            }}
-          >
+          ) : null}
+          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onReturnToMenu} style={buttonStyle("danger")}>
             Quit to Menu
           </motion.button>
         </div>
 
-        <div
-          style={{
-            fontSize: '11px',
-            color: '#78350f',
-            marginTop: '16px',
-            fontFamily: "'Philosopher', serif",
-          }}
-        >
-          Press P or Space to resume
+        <div style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 11, marginTop: 16 }}>
+          Press P or Space to resume.
         </div>
       </motion.div>
-    </motion.div>
+    </OverlayShell>
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: string; label: string; value: string | number; color: string }) {
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div
       style={{
-        background: 'rgba(0,0,0,0.4)',
-        border: '1px solid rgba(120,53,15,0.5)',
-        borderRadius: '8px',
-        padding: '10px 14px',
-        textAlign: 'center',
+        ...panelStyle({ padding: "12px" }),
+        background: gameUiTheme.surfaceSoft,
+        textAlign: "left",
       }}
     >
-      <div style={{ fontSize: '20px', marginBottom: '4px' }}>{icon}</div>
-      <div style={{ fontSize: '18px', fontWeight: 'bold', color, fontFamily: "'Philosopher', serif" }}>
-        {value}
+      <div style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        {label}
       </div>
-      <div style={{ color: '#78350f', fontSize: '10px' }}>{label}</div>
+      <div style={{ ...metricValueStyle(color), fontSize: 18, marginTop: 6 }}>{value}</div>
     </div>
   );
 }

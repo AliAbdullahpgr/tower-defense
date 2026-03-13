@@ -215,6 +215,60 @@ export class GameEngine {
     this.cleanupDead();
   }
 
+  private getWaveConfigFor(waveNumber: number) {
+    return WAVE_CONFIGS[waveNumber - 1] || this.generateEndlessWave(waveNumber);
+  }
+
+  private isBossWave(waveNumber: number) {
+    return this.getWaveConfigFor(waveNumber).isBoss;
+  }
+
+  private createWaveSpawnQueue(
+    config: {
+      enemies: Array<{ type: EnemyType; count: number; delay: number }>;
+      isBoss?: boolean;
+      bossType?: EnemyType;
+    },
+    includeBossLeader: boolean
+  ) {
+    const queue: Array<{ type: EnemyType; delay: number; timer: number }> = [];
+
+    for (const group of config.enemies) {
+      const isBossGroup = ENEMY_DEFINITIONS[group.type]?.isBoss;
+      if (includeBossLeader && isBossGroup) continue;
+
+      for (let i = 0; i < group.count; i++) {
+        queue.push({
+          type: group.type,
+          delay: group.delay,
+          timer: i === 0 && queue.length === 0 ? 0 : group.delay,
+        });
+      }
+    }
+
+    if (includeBossLeader && config.bossType) {
+      queue.push({ type: config.bossType, delay: 3500, timer: 3500 });
+    }
+
+    if (queue.length > 0) queue[0].timer = 0;
+    return queue;
+  }
+
+  private getBossStats(type: EnemyType) {
+    const def = ENEMY_DEFINITIONS[type];
+    const waveScale = 1 + (this.state.stats.wave - 1) * 0.18;
+    return {
+      hp: Math.round(def.hp * waveScale * 2.75),
+      damage: Math.max(def.damage, Math.round(def.damage * (1.15 + this.state.stats.wave * 0.015))),
+      reward: Math.round(def.reward * 1.35),
+      size: Math.round(def.size * 1.08),
+    };
+  }
+
+  private showAnnouncement(text: string, duration: number) {
+    this.state.waveAnnouncement = { text, timer: duration, maxTimer: duration };
+  }
+
   // ============================================================
   // WAVE MANAGEMENT
   // ============================================================
@@ -258,7 +312,10 @@ export class GameEngine {
         return;
       }
 
-      s.waveCountdown = 8000;
+      s.waveCountdown = this.isBossWave(s.stats.wave + 1) ? 6500 : 8000;
+      if (this.isBossWave(s.stats.wave + 1)) {
+        this.showAnnouncement(`WARNING - BOSS APPROACHING`, 2200);
+      }
       this.updateNextWavePreview();
     }
 
@@ -273,39 +330,32 @@ export class GameEngine {
 
   startNextWave() {
     const s = this.state;
+    if (s.waveInProgress) return;
+    if (!s.endlessMode && s.stats.wave >= WAVE_CONFIGS.length) return;
+
     s.stats.wave++;
     s.waveInProgress = true;
+    s.waveCountdown = 0;
 
     // Wave announcement banner
-    const isBossWave = WAVE_CONFIGS[s.stats.wave - 1]?.isBoss || (s.stats.wave > WAVE_CONFIGS.length && s.stats.wave % 3 === 0);
+    const isBossWave = this.isBossWave(s.stats.wave);
     const announcementText = isBossWave
       ? `BOSS WAVE ${s.stats.wave}!`
       : `Wave ${s.stats.wave} Incoming!`;
-    s.waveAnnouncement = { text: announcementText, timer: 2500, maxTimer: 2500 };
+    this.showAnnouncement(announcementText, isBossWave ? 3000 : 2200);
 
-    let config = WAVE_CONFIGS[s.stats.wave - 1];
+    const config = this.getWaveConfigFor(s.stats.wave);
+    s.spawnQueue = this.createWaveSpawnQueue(config, Boolean(config.isBoss && config.bossType));
 
-    // Endless mode: generate varied & escalating waves beyond wave 20
-    if (!config) {
-      config = this.generateEndlessWave(s.stats.wave);
-    }
-
-    s.spawnQueue = [];
-    for (const group of config.enemies) {
-      for (let i = 0; i < group.count; i++) {
-        s.spawnQueue.push({ type: group.type, delay: group.delay, timer: i === 0 ? 0 : group.delay });
-      }
-    }
-    if (s.spawnQueue.length > 0) s.spawnQueue[0].timer = 0;
-
-    // Boss wave: spawn a boss enemy
     if (config.isBoss && config.bossType) {
-      const bossDef = ENEMY_DEFINITIONS[config.bossType];
-      const scaleFactor = 1 + (s.stats.wave - 1) * 0.1;
-      s.bossMaxHp = Math.round(bossDef.hp * scaleFactor * 2);
-      s.bossHp = s.bossMaxHp;
+      const bossStats = this.getBossStats(config.bossType);
+      s.bossMaxHp = bossStats.hp;
+      s.bossHp = bossStats.hp;
       s.bossActive = true;
-      s.spawnQueue.push({ type: config.bossType, delay: 3000, timer: 3000 });
+    } else {
+      s.bossMaxHp = 0;
+      s.bossHp = 0;
+      s.bossActive = false;
     }
 
     this.updateNextWavePreview();
@@ -318,28 +368,22 @@ export class GameEngine {
     if (s.gameState !== 'playing' || !s.waveInProgress) return;
 
     s.stats.wave++;
-    let config = WAVE_CONFIGS[s.stats.wave - 1];
+    const config = this.getWaveConfigFor(s.stats.wave);
 
-    // Endless mode: generate varied & escalating waves beyond defined waves
-    if (!config) {
-      config = this.generateEndlessWave(s.stats.wave);
+    const incomingQueue = this.createWaveSpawnQueue(
+      config,
+      Boolean(config.isBoss && config.bossType)
+    );
+    for (const item of incomingQueue) {
+      s.spawnQueue.push({ ...item, timer: item.delay });
     }
 
-    // Append to existing spawn queue instead of replacing
-    for (const group of config.enemies) {
-      for (let i = 0; i < group.count; i++) {
-        s.spawnQueue.push({ type: group.type, delay: group.delay, timer: group.delay });
-      }
-    }
-
-    // Boss wave
     if (config.isBoss && config.bossType) {
-      const bossDef = ENEMY_DEFINITIONS[config.bossType];
-      const scaleFactor = 1 + (s.stats.wave - 1) * 0.1;
-      s.bossMaxHp = Math.round(bossDef.hp * scaleFactor * 2);
-      s.bossHp = s.bossMaxHp;
+      const bossStats = this.getBossStats(config.bossType);
+      s.bossMaxHp = bossStats.hp;
+      s.bossHp = bossStats.hp;
       s.bossActive = true;
-      s.spawnQueue.push({ type: config.bossType, delay: 3000, timer: 3000 });
+      this.showAnnouncement(`BOSS WAVE ${s.stats.wave}!`, 2800);
     }
 
     // Early send bonus: +10% of wave reward
@@ -406,11 +450,6 @@ export class GameEngine {
     const isBoss = endlessWave % 3 === 0 || (endlessWave > 10 && endlessWave % 2 === 0);
     const bossType = bossTypes[Math.floor(seed(waveNum * 23) * bossTypes.length)];
 
-    // After wave 30, chance of double boss
-    if (endlessWave > 10 && seed(waveNum * 41) > 0.7) {
-      enemies.push({ type: bossTypes[Math.floor(seed(waveNum * 47) * bossTypes.length)], count: 1, delay: 4000 });
-    }
-
     return {
       waveNumber: waveNum,
       enemies,
@@ -425,11 +464,21 @@ export class GameEngine {
     const nextWaveIdx = s.stats.wave; // 0-indexed for next wave
     if (nextWaveIdx < WAVE_CONFIGS.length) {
       const config = WAVE_CONFIGS[nextWaveIdx];
-      s.nextWavePreview = config.enemies.map(e => ({ type: e.type, count: e.count }));
+      const preview = config.enemies
+        .filter(e => !config.isBoss || !ENEMY_DEFINITIONS[e.type]?.isBoss)
+        .map(e => ({ type: e.type, count: e.count }));
+      if (config.isBoss && config.bossType) {
+        preview.push({ type: config.bossType, count: 1 });
+      }
+      s.nextWavePreview = preview;
     } else if (s.endlessMode) {
       // Generate preview for endless wave
       const endlessConfig = this.generateEndlessWave(nextWaveIdx + 1);
-      s.nextWavePreview = endlessConfig.enemies.map(e => ({ type: e.type, count: e.count }));
+      const preview = endlessConfig.enemies.map(e => ({ type: e.type, count: e.count }));
+      if (endlessConfig.isBoss && endlessConfig.bossType) {
+        preview.push({ type: endlessConfig.bossType, count: 1 });
+      }
+      s.nextWavePreview = preview;
     } else {
       s.nextWavePreview = [];
     }
@@ -446,17 +495,19 @@ export class GameEngine {
     const scaleFactor = (1 + (this.state.stats.wave - 1) * 0.08) * diffMult.hp;
     const speedScale = diffMult.speed;
 
+    const bossStats = def.isBoss ? this.getBossStats(type) : null;
+
     const enemy: Enemy = {
       id: nanoid(),
       type,
       x: startCol * CELL_SIZE + CELL_SIZE / 2,
       y: startRow * CELL_SIZE + CELL_SIZE / 2,
-      hp: Math.round(def.hp * scaleFactor),
-      maxHp: Math.round(def.hp * scaleFactor),
+      hp: bossStats ? bossStats.hp : Math.round(def.hp * scaleFactor),
+      maxHp: bossStats ? bossStats.hp : Math.round(def.hp * scaleFactor),
       speed: def.speed * speedScale,
       baseSpeed: def.speed * speedScale,
-      reward: def.reward,
-      damage: def.damage,
+      reward: bossStats ? bossStats.reward : def.reward,
+      damage: bossStats ? bossStats.damage : def.damage,
       pathIndex: 0,
       progress: 0,
       frozen: false,
@@ -467,7 +518,7 @@ export class GameEngine {
       poisonDamage: 0,
       alive: true,
       reached: false,
-      size: def.size,
+      size: bossStats ? bossStats.size : def.size,
       color: def.color,
       emoji: def.emoji,
       animFrame: 0,
@@ -653,6 +704,7 @@ export class GameEngine {
             animFrame: 0, animTimer: 0,
             facingLeft: enemy.facingLeft,
             walkCycle: Math.random(),
+            moveAngle: enemy.moveAngle,
             isFlying: false, isArmored: false,
             isTunneling: false, tunnelTimer: 0,
             isHealer: false, isBoss: false,

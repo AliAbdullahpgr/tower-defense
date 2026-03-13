@@ -160,6 +160,7 @@ export function drawSpriteFrame(
 
 type EnemySpriteAction = 'Walk' | 'Death' | 'Attack' | 'Special' | 'Walk2' | 'Death2' | 'Run' | 'Fly';
 type EnemySpriteDir = 'S' | 'D' | 'U'; // Side, Down, Up
+export type Direction = 'south' | 'south-west' | 'west' | 'north-west' | 'north' | 'north-east' | 'east' | 'south-east';
 
 interface EnemySpriteMapping {
   folder: string;      // e.g., 'enemies/mob1' or 'enemies/largeMob1'
@@ -216,6 +217,22 @@ const ENEMY_SPRITE_MAP: Partial<Record<EnemyType, EnemySpriteMapping>> = {
   // Epic Bosses (AI-generated) - 4 direction sprites
   bossTitan:    { folder: 'enemies/bossTitan', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
   bossSerpent:  { folder: 'enemies/bossSerpent', frameSize: 56, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
+};
+
+interface EnemyRotationConfig {
+  folder: string;
+  directions: 4 | 8;
+}
+
+const ENEMY_ROTATION_MAP: Partial<Record<EnemyType, EnemyRotationConfig>> = {
+  bossDragon: { folder: 'enemies/bossDragon', directions: 4 },
+  bossQuadrupedBear: { folder: 'enemies/bossQuadrupeds/demonic_bear', directions: 4 },
+  bossQuadrupedHorse: { folder: 'enemies/bossQuadrupeds/undead_horse', directions: 4 },
+  bossQuadrupedLion: { folder: 'enemies/bossQuadrupeds/crystal_lion', directions: 4 },
+  bossQuadrupedWolf: { folder: 'enemies/bossQuadrupeds/war_wolf', directions: 4 },
+  bossQuadrupedStoneBear: { folder: 'enemies/bossQuadrupeds/stone_bear', directions: 4 },
+  bossTitan: { folder: 'enemies/bossTitan', directions: 8 },
+  bossSerpent: { folder: 'enemies/bossSerpent', directions: 8 },
 };
 
 // ============================================================
@@ -325,8 +342,23 @@ export function drawEnemySprite(
   walkCycle: number,
   dying: boolean,
   facingLeft: boolean,
-  direction: EnemySpriteDir = 'S'
+  direction: EnemySpriteDir = 'S',
+  moveAngleRadians?: number
 ): boolean {
+  const rotationConfig = ENEMY_ROTATION_MAP[enemyType];
+  if (rotationConfig && !dying) {
+    const directionLabel = rotationConfig.directions === 4
+      ? angleToDirection4(((moveAngleRadians ?? 0) * 180) / Math.PI)
+      : angleToDirection(((moveAngleRadians ?? 0) * 180) / Math.PI);
+    const img = loadImage(`/sprites/${rotationConfig.folder}/rotations/${directionLabel}.png`);
+    if (img && img.complete && img.naturalWidth > 0) {
+      const dw = size * 2.5;
+      const dh = size * 2.5;
+      ctx.drawImage(img, x - dw / 2, y - dh / 2, dw, dh);
+      return true;
+    }
+  }
+
   const mapping = ENEMY_SPRITE_MAP[enemyType];
   if (!mapping) return false;
 
@@ -599,8 +631,6 @@ export function getCharacterSprite(name: 'knight_hero' | 'mage_hero' | 'orc_brut
 // ============================================================
 // DIRECTIONAL CHARACTER SPRITES (PixelLab generated)
 // ============================================================
-
-export type Direction = 'south' | 'south-west' | 'west' | 'north-west' | 'north' | 'north-east' | 'east' | 'south-east';
 
 export type PixelLabCharacterName = 'hero_sword' | 'wizard' | 'spear_hero' | 'dragon' | 'infantry' | 'wolf' | 'skeleton' | 'archer' | 'pikeman' | 'paladin';
 
