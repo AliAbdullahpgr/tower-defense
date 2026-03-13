@@ -235,29 +235,7 @@ export default function Home() {
         <TowerShop state={gameState} engine={engineRef.current} />
       </div>
 
-      {/* Footer hint bar */}
-      <div
-        style={{
-          padding: "8px 12px 10px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: "10px",
-          background: "linear-gradient(180deg, rgba(243,249,248,0.95), rgba(233,244,242,0.92))",
-          borderTop: `1px solid ${gameUiTheme.border}`,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.55)",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ color: gameUiTheme.muted, fontFamily: gameUiFonts.body }}>
-          ESC: Deselect · Space/P: Pause · 1-0, Q-Y: Select Tower
-        </span>
-        <span style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body }}>
-          Fantasy Tower Defense
-        </span>
-      </div>
-
-      {/* Settings Panel Overlay */}
+{/* Settings Panel Overlay */}
       {showSettings && (
         <SettingsPanel onClose={handleCloseSettings} />
       )}

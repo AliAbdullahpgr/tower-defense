@@ -1,6 +1,6 @@
 // ============================================================
 // Fantasy Tower Defense — Tower Shop Sidebar
-// Clean in-game UI revamp
+// Ultra clean, less boxy design
 // ============================================================
 
 import { useEffect, useRef, useState } from "react";
@@ -13,6 +13,7 @@ import { renderTowerPreview } from "../game/renderer";
 import { SFX } from "../game/audio";
 import {
   buttonStyle,
+  cardStyle,
   chipStyle,
   gameUiFonts,
   gameUiTheme,
@@ -31,99 +32,78 @@ const TOWER_CATEGORIES: Array<{
   icon: string;
   towers: TowerType[];
 }> = [
-  {
-    label: "Ranged",
-    icon: "Arc",
-    towers: [
-      "archer",
-      "mage",
-      "cannon",
-      "frost",
-      "lightning",
-      "poison",
-      "ballista",
-    ],
-  },
-  {
-    label: "Barracks",
-    icon: "Guard",
-    towers: [
-      "infantry",
-      "archer_barracks",
-      "pikeman_barracks",
-      "hero",
-      "paladin_shrine",
-    ],
-  },
-  {
-    label: "Summons",
-    icon: "Wild",
-    towers: ["beastmaster", "necromancer"],
-  },
-  {
-    label: "Siege",
-    icon: "Heavy",
-    towers: ["catapult", "tesla"],
-  },
-];
+    {
+      label: "Ranged",
+      icon: "✦",
+      towers: ["archer", "mage", "cannon", "frost", "lightning", "poison", "ballista"],
+    },
+    {
+      label: "Barracks",
+      icon: "◆",
+      towers: ["infantry", "archer_barracks", "pikeman_barracks", "hero", "paladin_shrine"],
+    },
+    {
+      label: "Summons",
+      icon: "★",
+      towers: ["beastmaster", "necromancer"],
+    },
+    {
+      label: "Siege",
+      icon: "◉",
+      towers: ["catapult", "tesla"],
+    },
+  ];
 
 const TOWER_HOTKEY_MAP: Partial<Record<TowerType, string>> = {
-  archer: "1",
-  mage: "2",
-  cannon: "3",
-  frost: "4",
-  lightning: "5",
-  poison: "6",
-  ballista: "7",
-  infantry: "8",
-  archer_barracks: "9",
-  pikeman_barracks: "0",
-  hero: "Q",
-  paladin_shrine: "W",
-  beastmaster: "E",
-  necromancer: "R",
-  catapult: "T",
-  tesla: "Y",
+  archer: "1", mage: "2", cannon: "3", frost: "4", lightning: "5", poison: "6", ballista: "7",
+  infantry: "8", archer_barracks: "9", pikeman_barracks: "0", hero: "Q", paladin_shrine: "W",
+  beastmaster: "E", necromancer: "R", catapult: "T", tesla: "Y",
 };
 
 const TARGETING_MODES: Array<{
   mode: TargetingMode;
-  short: string;
   label: string;
   color: string;
 }> = [
-  { mode: "first", short: "1st", label: "First", color: gameUiTheme.success },
-  { mode: "last", short: "Last", label: "Last", color: gameUiTheme.info },
-  { mode: "strongest", short: "Strong", label: "Strongest", color: gameUiTheme.danger },
-  { mode: "weakest", short: "Weak", label: "Weakest", color: gameUiTheme.warning },
-  { mode: "fastest", short: "Fast", label: "Fastest", color: gameUiTheme.violet },
-];
+    { mode: "first", label: "First", color: gameUiTheme.success },
+    { mode: "last", label: "Last", color: gameUiTheme.info },
+    { mode: "strongest", label: "Strong", color: gameUiTheme.danger },
+    { mode: "weakest", label: "Weak", color: gameUiTheme.warning },
+    { mode: "fastest", label: "Fast", color: gameUiTheme.violet },
+  ];
 
-const ABILITY_CONFIG: Record<
-  string,
-  { label: string; icon: string; color: string; background: string }
-> = {
-  lightningStorm: {
-    label: "Storm",
-    icon: "LT",
-    color: gameUiTheme.info,
-    background: gameUiTheme.infoSoft,
-  },
-  freezeWave: {
-    label: "Freeze",
-    icon: "FR",
-    color: gameUiTheme.accent,
-    background: gameUiTheme.accentSoft,
-  },
-  goldRush: {
-    label: "Gold",
-    icon: "GD",
-    color: gameUiTheme.warning,
-    background: gameUiTheme.warningSoft,
-  },
+const ABILITY_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+  lightningStorm: { label: "Storm", icon: "⚡", color: gameUiTheme.info },
+  freezeWave: { label: "Freeze", icon: "❄", color: gameUiTheme.accent },
+  goldRush: { label: "Gold", icon: "◈", color: gameUiTheme.gold },
 };
 
-function TowerPreviewCanvas({ type, size = 64 }: { type: TowerType; size?: number }) {
+function IconImg({ src, size = 16 }: { src: string; size?: number }) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    if (imgRef.current) {
+      imgRef.current.onerror = () => {
+        if (imgRef.current) imgRef.current.style.display = "none";
+      };
+    }
+  }, [src]);
+  return (
+    <img
+      ref={imgRef}
+      src={src}
+      width={size}
+      height={size}
+      style={{
+        objectFit: "contain",
+        imageRendering: "pixelated",
+        filter: `drop-shadow(0 0 2px ${gameUiTheme.accent}30)`,
+      }}
+      alt=""
+    />
+  );
+}
+
+function TowerPreviewCanvas({ type, size = 52 }: { type: TowerType; size?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -132,10 +112,10 @@ function TowerPreviewCanvas({ type, size = 64 }: { type: TowerType; size?: numbe
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const bg = ctx.createLinearGradient(0, 0, size, size);
-    bg.addColorStop(0, "#f9fcfb");
-    bg.addColorStop(1, "#e8f3f0");
-    ctx.fillStyle = bg;
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, "rgba(77, 208, 225, 0.05)");
+    gradient.addColorStop(1, "transparent");
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, size, size);
     renderTowerPreview(ctx, type, size);
   }, [type, size]);
@@ -148,10 +128,8 @@ function TowerPreviewCanvas({ type, size = 64 }: { type: TowerType; size?: numbe
       style={{
         width: size,
         height: size,
-        borderRadius: 14,
-        border: `1px solid ${gameUiTheme.border}`,
-        background: "#f8fcfb",
-        boxShadow: gameUiTheme.inset,
+        borderRadius: 16,
+        background: "rgba(20, 50, 50, 0.3)",
         display: "block",
         flexShrink: 0,
       }}
@@ -163,278 +141,203 @@ function AbilityButton({
   ability,
   onUse,
 }: {
-  ability: {
-    type: string;
-    name: string;
-    description: string;
-    cooldown: number;
-    currentCooldown: number;
-    active: boolean;
-  };
+  ability: { type: string; name: string; description: string; cooldown: number; currentCooldown: number; active: boolean };
   onUse: () => void;
 }) {
   const ready = ability.currentCooldown <= 0 && !ability.active;
-  const config = ABILITY_CONFIG[ability.type] || {
-    label: ability.name,
-    icon: "--",
-    color: gameUiTheme.accent,
-    background: gameUiTheme.accentSoft,
-  };
+  const config = ABILITY_CONFIG[ability.type] || { label: ability.name, icon: "★", color: gameUiTheme.accent };
 
   return (
     <motion.button
-      whileHover={ready ? { y: -1 } : {}}
+      whileHover={ready ? { scale: 1.02 } : {}}
       whileTap={ready ? { scale: 0.98 } : {}}
       onClick={onUse}
       disabled={!ready}
       title={ability.description}
       style={{
-        ...panelStyle({ padding: "10px 10px 9px" }),
-        background: ability.active ? config.background : gameUiTheme.surfaceSoft,
-        border: `1px solid ${ability.active ? config.color : gameUiTheme.border}`,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 5,
         flex: 1,
+        borderRadius: 4,
+        border: `2px solid ${ability.active ? config.color : gameUiTheme.border}`,
+        background: ability.active ? `linear-gradient(180deg, ${config.color}20, rgba(12, 22, 28, 0.9))` : "rgba(12, 22, 28, 0.6)",
+        boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)",
         cursor: ready ? "pointer" : "not-allowed",
-        opacity: ready || ability.active ? 1 : 0.6,
+        opacity: ready || ability.active ? 1 : 0.4,
+        transition: "all 0.2s",
       }}
     >
-      <span
-        style={{
-          ...chipStyle({ active: true, color: config.color, background: `${config.color}16` }),
-          padding: "3px 7px",
-          minWidth: 0,
-        }}
-      >
+      <div style={{ textAlign: "center", marginBottom: 3, fontSize: 13 }}>
         {config.icon}
-      </span>
-      <div style={{ textAlign: "left" }}>
-        <div
-          style={{
-            color: gameUiTheme.textStrong,
-            fontFamily: gameUiFonts.body,
-            fontSize: 11,
-            fontWeight: 700,
-            lineHeight: 1.1,
-          }}
-        >
-          {config.label}
-        </div>
-        <div
-          style={{
-            color: ability.active
-              ? config.color
-              : ready
-                ? gameUiTheme.muted
-                : gameUiTheme.danger,
-            fontFamily: gameUiFonts.body,
-            fontSize: 10,
-            marginTop: 2,
-          }}
-        >
-          {ability.active
-            ? "Active"
-            : ready
-              ? "Ready"
-              : `${Math.ceil(ability.currentCooldown / 1000)}s`}
-        </div>
+      </div>
+      <div style={{ ...sectionTitleStyle(), fontSize: 9, textAlign: "center", marginBottom: 1 }}>
+        {config.label}
+      </div>
+      <div style={{
+        color: ability.active ? config.color : ready ? gameUiTheme.muted : gameUiTheme.danger,
+        fontFamily: gameUiFonts.numbers,
+        fontSize: 8,
+        textAlign: "center",
+      }}>
+        {ability.active ? "Active" : ready ? "Ready" : `${Math.ceil(ability.currentCooldown / 1000)}s`}
       </div>
     </motion.button>
   );
 }
 
-function TowerMetric({ label, value }: { label: string; value: string }) {
+function TowerMetric({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
   return (
-    <div
-      style={{
-        ...panelStyle({ padding: "7px 8px" }),
-        background: gameUiTheme.surfaceSoft,
-        display: "flex",
-        flexDirection: "column",
-        gap: 3,
-        minWidth: 0,
-      }}
-    >
-      <span
-        style={{
-          color: gameUiTheme.mutedSoft,
-          fontFamily: gameUiFonts.body,
-          fontSize: 9,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-        }}
-      >
+    <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: compact ? 0 : 45 }}>
+      <span style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 7, textTransform: "uppercase", letterSpacing: 0.5 }}>
         {label}
       </span>
-      <span style={{ ...metricValueStyle(), fontSize: 12 }}>{value}</span>
+      <span style={{ ...metricValueStyle(), fontSize: compact ? 10 : 12 }}>{value}</span>
     </div>
   );
 }
 
 function TagPill({ color, text }: { color: string; text: string }) {
   return (
-    <span
-      style={{
-        ...chipStyle({ active: true, color, background: `${color}14` }),
-        padding: "3px 8px",
-        fontSize: 9,
-      }}
-    >
+    <span style={{
+      ...chipStyle({ active: true, color, size: "sm" }),
+      background: `${color}08`,
+      border: "none",
+      padding: "2px 8px",
+    }}>
       {text}
     </span>
   );
 }
 
-function SelectedTowerPanel({
-  state,
-  engine,
-}: {
-  state: GameEngineState;
-  engine: GameEngine;
-}) {
+function SelectedTowerPanel({ state, engine }: { state: GameEngineState; engine: GameEngine }) {
   const selectedTower = state.selectedTowerId
     ? state.towers.find((tower) => tower.id === state.selectedTowerId)
     : null;
 
   if (!selectedTower) return null;
 
-  const canUpgrade =
-    selectedTower.level < 3 && state.stats.gold >= selectedTower.upgradeCost;
+  const canUpgrade = selectedTower.level < 3 && state.stats.gold >= selectedTower.upgradeCost;
+  const def = TOWER_DEFINITIONS[selectedTower.type];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
-      style={{ ...panelStyle({ padding: "14px" }), display: "flex", flexDirection: "column", gap: 12, marginTop: 10 }}
+      style={{
+        ...panelStyle({ padding: "12px", glow: true }),
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        marginBottom: 8,
+      }}
     >
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <TowerPreviewCanvas type={selectedTower.type} size={62} />
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ ...sectionTitleStyle(), fontSize: 16 }}>{selectedTower.name}</div>
-          <div
-            style={{
-              color: gameUiTheme.muted,
-              fontFamily: gameUiFonts.body,
-              fontSize: 11,
-              marginTop: 3,
-            }}
-          >
-            Level {selectedTower.level} · Sell for {selectedTower.sellValue}g
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ position: "relative" }}>
+          <TowerPreviewCanvas type={selectedTower.type} size={48} />
+          <div style={{
+            position: "absolute",
+            bottom: -2,
+            right: -2,
+            background: def?.color || gameUiTheme.accent,
+            borderRadius: 10,
+            padding: "1px 5px",
+            fontFamily: gameUiFonts.numbers,
+            fontSize: 7,
+            color: gameUiTheme.page,
+            fontWeight: 700,
+          }}>
+            {selectedTower.level}
           </div>
-          <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={index}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 999,
-                  background:
-                    index < selectedTower.level
-                      ? gameUiTheme.warning
-                      : "rgba(97, 128, 135, 0.22)",
-                }}
-              />
-            ))}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...sectionTitleStyle(), fontSize: 13 }}>{selectedTower.name}</div>
+          <div style={{ color: gameUiTheme.muted, fontFamily: gameUiFonts.body, fontSize: 9, marginTop: 1 }}>
+            Sell: <span style={{ color: gameUiTheme.gold }}>{selectedTower.sellValue}</span>
           </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
-        <TowerMetric label="Damage" value={selectedTower.damage.toString()} />
-        <TowerMetric label="Range" value={selectedTower.range.toFixed(1)} />
-        <TowerMetric
-          label="Rate"
-          value={selectedTower.fireRate > 0 ? `${selectedTower.fireRate.toFixed(1)}/s` : "Unit"}
-        />
-        <TowerMetric
-          label="Bonus"
-          value={selectedTower.powerBonus > 0 ? `+${Math.round(selectedTower.powerBonus * 25)}%` : "None"}
-        />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 6 }}>
+        <TowerMetric label="DMG" value={selectedTower.damage.toString()} />
+        <TowerMetric label="RNG" value={selectedTower.range.toFixed(1)} />
+        <TowerMetric label="SPD" value={selectedTower.fireRate > 0 ? `${selectedTower.fireRate.toFixed(1)}` : "—"} />
+        <TowerMetric label="PWR" value={selectedTower.powerBonus > 0 ? `+${Math.round(selectedTower.powerBonus * 25)}%` : "—"} />
       </div>
 
       <div>
-        <div
-          style={{
-            color: gameUiTheme.mutedSoft,
-            fontFamily: gameUiFonts.body,
-            fontSize: 10,
-            textTransform: "uppercase",
-            letterSpacing: 0.7,
-            marginBottom: 6,
-          }}
-        >
+        <div style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 7, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 4 }}>
           Targeting
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
+        <div style={{ display: "flex", gap: 3 }}>
           {TARGETING_MODES.map((item) => {
             const active = selectedTower.targetingMode === item.mode;
             return (
               <motion.button
                 key={item.mode}
-                whileHover={{ y: -1 }}
+                whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => engine.setTargetingMode(selectedTower.id, item.mode)}
                 title={item.label}
                 style={{
-                  ...chipStyle({ active, color: item.color, background: active ? `${item.color}16` : gameUiTheme.surfaceSoft }),
-                  width: "100%",
-                  minWidth: 0,
-                  padding: "8px 4px",
-                  fontSize: 9,
+                  flex: 1,
+                  padding: "4px 2px",
+                  borderRadius: 2,
+                  border: `1px solid ${active ? item.color : gameUiTheme.border}`,
+                  background: active ? `${item.color}15` : "rgba(12, 22, 28, 0.6)",
+                  color: active ? item.color : gameUiTheme.muted,
+                  fontFamily: gameUiFonts.body,
+                  fontSize: 7,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
                 }}
               >
-                {item.short}
+                {item.label}
               </motion.button>
             );
           })}
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 5 }}>
         {selectedTower.level < 3 ? (
           <motion.button
-            whileHover={canUpgrade ? { y: -1 } : {}}
+            whileHover={canUpgrade ? { scale: 1.02 } : {}}
             whileTap={canUpgrade ? { scale: 0.98 } : {}}
-            onClick={() => {
-              engine.upgradeTower(selectedTower.id);
-              SFX.towerUpgrade();
-            }}
+            onClick={() => { engine.upgradeTower(selectedTower.id); SFX.towerUpgrade(); }}
             disabled={!canUpgrade}
             style={{
-              ...buttonStyle("accent"),
               flex: 1,
-              opacity: canUpgrade ? 1 : 0.55,
-              cursor: canUpgrade ? "pointer" : "not-allowed",
+              ...buttonStyle(canUpgrade ? "accent" : "soft"),
+              opacity: canUpgrade ? 1 : 0.4,
             }}
           >
-            Upgrade {selectedTower.upgradeCost}g
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+              <IconImg src="/sprites/ui/icon_arrow_up.png" size={10} />
+              Upgrade · {selectedTower.upgradeCost}
+            </div>
           </motion.button>
         ) : (
-          <div
-            style={{
-              ...chipStyle({ active: true, color: gameUiTheme.warning, background: gameUiTheme.warningSoft }),
-              flex: 1,
-              padding: "10px 14px",
-              justifyContent: "center",
-            }}
-          >
+          <div style={{
+            flex: 1,
+            padding: "6px",
+            borderRadius: 14,
+            background: `${gameUiTheme.warning}08`,
+            color: gameUiTheme.warning,
+            fontFamily: gameUiFonts.body,
+            fontSize: 9,
+            fontWeight: 500,
+            textAlign: "center",
+          }}>
             Max Level
           </div>
         )}
         <motion.button
-          whileHover={{ y: -1 }}
+          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => {
-            engine.sellTower(selectedTower.id);
-            SFX.towerSell();
-          }}
+          onClick={() => { engine.sellTower(selectedTower.id); SFX.towerSell(); }}
           style={{ ...buttonStyle("danger"), flex: 1 }}
         >
-          Sell {selectedTower.sellValue}g
+          Sell · {selectedTower.sellValue}
         </motion.button>
       </div>
     </motion.div>
@@ -461,123 +364,94 @@ function TowerCard({
   const def = TOWER_DEFINITIONS[type];
   if (!def) return null;
 
-  const tone = canAfford ? def.color : gameUiTheme.mutedSoft;
+  const color = canAfford ? def.color : gameUiTheme.mutedSoft;
 
   return (
     <motion.button
-      whileHover={canAfford || selected ? { y: -1 } : {}}
-      whileTap={canAfford || selected ? { scale: 0.985 } : {}}
+      whileHover={canAfford || selected ? { scale: 1.01 } : {}}
+      whileTap={canAfford || selected ? { scale: 0.99 } : {}}
       onClick={onSelect}
       onMouseEnter={onHover}
       onMouseLeave={onLeave}
       disabled={!canAfford && !selected}
+      title={def.description}
       style={{
-        ...panelStyle({ padding: "12px" }),
-        display: "flex",
-        gap: 12,
-        alignItems: "flex-start",
-        textAlign: "left",
         width: "100%",
-        background: selected
-          ? `${def.color}12`
-          : hovered
-            ? gameUiTheme.surfaceStrong
-            : gameUiTheme.surface,
-        border: `1px solid ${selected ? def.color : gameUiTheme.border}`,
-        opacity: canAfford || selected ? 1 : 0.56,
+        padding: "8px 10px",
+        textAlign: "left",
+        ...cardStyle({ selected, color }),
+        display: "flex",
+        gap: 8,
+        alignItems: "flex-start",
+        opacity: canAfford || selected ? 1 : 0.35,
         cursor: canAfford || selected ? "pointer" : "not-allowed",
         position: "relative",
         overflow: "hidden",
       }}
-      title={def.description}
     >
-      {selected ? (
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 3,
-            background: def.color,
-          }}
-        />
-      ) : null}
+      {selected && (
+        <div style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 2,
+          background: color,
+          opacity: 0.6,
+        }} />
+      )}
 
-      <div style={{ position: "relative" }}>
-        <TowerPreviewCanvas type={type} />
-        {TOWER_HOTKEY_MAP[type] ? (
-          <span
-            style={{
-              position: "absolute",
-              top: -5,
-              left: -5,
-              ...chipStyle({ active: true, color: gameUiTheme.textStrong, background: gameUiTheme.surfaceStrong }),
-              padding: "3px 6px",
-              minWidth: 0,
-              boxShadow: gameUiTheme.shadowSoft,
-            }}
-          >
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <TowerPreviewCanvas type={type} size={44} />
+        {TOWER_HOTKEY_MAP[type] && (
+          <span style={{
+            position: "absolute",
+            top: -2,
+            left: -2,
+            background: gameUiTheme.surfaceStrong,
+            borderRadius: 8,
+            padding: "1px 4px",
+            fontFamily: gameUiFonts.numbers,
+            fontSize: 7,
+            color: gameUiTheme.accent,
+            fontWeight: 700,
+          }}>
             {TOWER_HOTKEY_MAP[type]}
           </span>
-        ) : null}
+        )}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                color: selected ? def.color : gameUiTheme.textStrong,
-                fontFamily: gameUiFonts.body,
-                fontSize: 13,
-                fontWeight: 700,
-                lineHeight: 1.15,
-              }}
-            >
-              {def.name}
-            </div>
-            <div
-              style={{
-                color: gameUiTheme.muted,
-                fontFamily: gameUiFonts.body,
-                fontSize: 10,
-                lineHeight: 1.4,
-                marginTop: 4,
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {def.description}
-            </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 5, marginBottom: 1 }}>
+          <div style={{
+            color: selected ? color : gameUiTheme.text,
+            fontFamily: gameUiFonts.body,
+            fontSize: 10,
+            fontWeight: 500,
+          }}>
+            {def.name}
           </div>
-          <span
-            style={{
-              ...chipStyle({ active: true, color: tone, background: `${tone}12` }),
-              fontFamily: gameUiFonts.numbers,
-              padding: "5px 9px",
-              flexShrink: 0,
-            }}
-          >
-            {def.cost}g
+          <span style={{
+            ...chipStyle({ active: true, color, size: "sm" }),
+            background: `${color}08`,
+            border: "none",
+            fontFamily: gameUiFonts.numbers,
+            fontSize: 8,
+          }}>
+            {def.cost}
           </span>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6, marginTop: 10 }}>
-          <TowerMetric label="Damage" value={def.damage.toString()} />
-          <TowerMetric label="Range" value={def.range.toFixed(1)} />
-          <TowerMetric
-            label="Rate"
-            value={def.fireRate > 0 ? `${def.fireRate.toFixed(1)}/s` : "Unit"}
-          />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 4, marginTop: 4 }}>
+          <TowerMetric label="DMG" value={def.damage.toString()} compact />
+          <TowerMetric label="RNG" value={def.range.toFixed(1)} compact />
+          <TowerMetric label="SPD" value={def.fireRate > 0 ? `${def.fireRate.toFixed(1)}` : "—"} compact />
         </div>
 
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 }}>
-          {def.specialEffect ? <TagPill color={gameUiTheme.violet} text={def.specialEffect.toUpperCase()} /> : null}
-          {def.unitType ? <TagPill color={gameUiTheme.success} text="SUMMON" /> : null}
-          {def.isAirCapable ? <TagPill color={gameUiTheme.info} text="AIR" /> : null}
+        <div style={{ display: "flex", gap: 2, marginTop: 4, flexWrap: "wrap" }}>
+          {def.specialEffect && <TagPill color={gameUiTheme.violet} text={def.specialEffect.toUpperCase()} />}
+          {def.unitType && <TagPill color={gameUiTheme.success} text="UNIT" />}
+          {def.isAirCapable && <TagPill color={gameUiTheme.info} text="AIR" />}
         </div>
       </div>
     </motion.button>
@@ -590,110 +464,120 @@ export default function TowerShop({ state, engine }: TowerShopProps) {
   const [hoveredType, setHoveredType] = useState<TowerType | null>(null);
 
   return (
-    <div
-      style={{
-        width: 304,
-        minWidth: 304,
-        height: "100%",
+    <div style={{
+      width: 240,
+      minWidth: 240,
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      gap: 0,
+      padding: "8px",
+      background: "linear-gradient(180deg, rgba(20, 32, 40, 0.98), rgba(12, 22, 28, 1))",
+      borderLeft: `2px solid ${gameUiTheme.borderStrong}`,
+      boxShadow: "-4px 0 16px rgba(0,0,0,0.6)",
+      overflowY: "hidden",
+      overflowX: "hidden",
+      flexShrink: 0,
+    }}>
+      <div style={{
         display: "flex",
-        flexDirection: "column",
-        gap: 0,
-        padding: 12,
-        background: "linear-gradient(180deg, rgba(233,244,242,0.88), rgba(242,248,247,0.92))",
-        borderLeft: `1px solid ${gameUiTheme.border}`,
-        boxShadow: "inset 1px 0 0 rgba(255,255,255,0.45)",
-        overflowY: "auto",
-        overflowX: "hidden",
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ ...panelStyle({ padding: "14px" }), marginBottom: 10 }}>
-        <div style={{ ...sectionTitleStyle(), fontSize: 18 }}>Tower Shop</div>
-        <div
-          style={{
-            color: gameUiTheme.muted,
-            fontFamily: gameUiFonts.body,
-            fontSize: 11,
-            marginTop: 4,
-          }}
-        >
-          Clean loadout, faster reading, better control.
-        </div>
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        padding: "10px 0",
+        marginBottom: 8,
+      }}>
+        <IconImg src="/sprites/ui/icon_plus.png" size={12} />
+        <div style={{ ...sectionTitleStyle(), fontSize: 12 }}>Tower Arsenal</div>
+        <span style={{ color: gameUiTheme.gold, fontFamily: gameUiFonts.numbers, fontSize: 11 }}>
+          {stats.gold}
+        </span>
       </div>
 
-      <AnimatePresence>{state.selectedTowerId ? <SelectedTowerPanel state={state} engine={engine} /> : null}</AnimatePresence>
+      <AnimatePresence>
+        {state.selectedTowerId && <SelectedTowerPanel state={state} engine={engine} />}
+      </AnimatePresence>
 
-      {abilities.length > 0 ? (
-        <div style={{ ...panelStyle({ padding: "12px" }), marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={sectionTitleStyle()}>Abilities</div>
-            <span style={{ ...chipStyle(), padding: "4px 9px" }}>Global</span>
+      {abilities.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <div style={{ ...sectionTitleStyle(), fontSize: 10 }}>Abilities</div>
+            <span style={{ ...chipStyle({ size: "sm" }), color: gameUiTheme.info }}>Global</span>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 4 }}>
             {abilities.map((ability) => (
-              <AbilityButton
-                key={ability.type}
-                ability={ability}
-                onUse={() => engine.activateAbility(ability.type)}
-              />
+              <AbilityButton key={ability.type} ability={ability} onUse={() => engine.activateAbility(ability.type)} />
             ))}
           </div>
         </div>
-      ) : null}
+      )}
 
-      {state.activeSynergies.length > 0 ? (
-        <div style={{ ...panelStyle({ padding: "12px" }), marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={sectionTitleStyle()}>Synergies</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {state.activeSynergies.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ ...sectionTitleStyle(), fontSize: 10, marginBottom: 5 }}>Synergies</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
             {state.activeSynergies.map((synergy) => (
-              <span
-                key={synergy.name}
-                title={synergy.description}
-                style={{ ...chipStyle({ active: true, color: gameUiTheme.violet, background: gameUiTheme.violetSoft }), padding: "5px 10px" }}
-              >
+              <span key={synergy.name} title={synergy.description} style={{
+                ...chipStyle({ active: true, color: gameUiTheme.violet, size: "sm" }),
+                background: `${gameUiTheme.violet}08`,
+              }}>
                 {synergy.name}
               </span>
             ))}
           </div>
         </div>
-      ) : null}
+      )}
 
-      <div style={{ ...panelStyle({ padding: "8px" }), marginTop: 10 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
-          {TOWER_CATEGORIES.map((category, index) => {
-            const active = index === activeCategory;
-            return (
-              <motion.button
-                key={category.label}
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveCategory(index)}
-                style={{
-                  ...chipStyle({ active, color: gameUiTheme.accentStrong, background: active ? gameUiTheme.accentSoft : gameUiTheme.surfaceSoft }),
-                  width: "100%",
-                  padding: "10px 8px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 2,
-                }}
-              >
-                <span style={{ fontSize: 9, opacity: 0.85 }}>{category.icon}</span>
-                <span>{category.label}</span>
-              </motion.button>
-            );
-          })}
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 3, marginBottom: 6 }}>
+        {TOWER_CATEGORIES.map((category, index) => {
+          const active = index === activeCategory;
+          return (
+            <motion.button
+              key={category.label}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveCategory(index)}
+              style={{
+                padding: "6px 2px",
+                borderRadius: 4,
+                border: `2px solid ${active ? gameUiTheme.accent : gameUiTheme.border}`,
+                background: active ? `${gameUiTheme.accent}15` : "rgba(12, 22, 28, 0.6)",
+                boxShadow: "inset 0 0 8px rgba(0,0,0,0.4)",
+                color: active ? gameUiTheme.accent : gameUiTheme.muted,
+                cursor: "pointer",
+                transition: "all 0.15s",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
+              <span style={{ fontSize: 11 }}>{category.icon}</span>
+              <span style={{ fontSize: 7, fontFamily: gameUiFonts.body, fontWeight: 500 }}>{category.label}</span>
+            </motion.button>
+          );
+        })}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        flex: 1,
+        minHeight: 0,
+        overflowY: "auto",
+        overflowX: "hidden",
+        paddingRight: 4,
+        paddingBottom: 4,
+      }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={TOWER_CATEGORIES[activeCategory].label}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18 }}
-            style={{ display: "flex", flexDirection: "column", gap: 8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            style={{ display: "flex", flexDirection: "column", gap: 4 }}
           >
             {TOWER_CATEGORIES[activeCategory].towers.map((type) => (
               <TowerCard
@@ -712,41 +596,32 @@ export default function TowerShop({ state, engine }: TowerShopProps) {
       </div>
 
       <AnimatePresence>
-        {selectedTowerType ? (
+        {selectedTowerType && (
           <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            style={{ ...panelStyle({ padding: "12px" }), marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              ...panelStyle({ padding: "10px", glow: true }),
+              marginTop: 6,
+              flexShrink: 0,
+            }}
           >
-            <div style={{ ...sectionTitleStyle(), fontSize: 14 }}>Placement Mode</div>
-            <div
-              style={{
-                color: gameUiTheme.muted,
-                fontFamily: gameUiFonts.body,
-                fontSize: 11,
-                lineHeight: 1.45,
-              }}
-            >
-              Click any open grass tile to place the selected tower.
+            <div style={{ ...sectionTitleStyle(), fontSize: 10, marginBottom: 4 }}>Placement Mode</div>
+            <div style={{ color: gameUiTheme.muted, fontFamily: gameUiFonts.body, fontSize: 8, lineHeight: 1.3 }}>
+              Click grass tiles to place. ESC to cancel.
             </div>
             <motion.button
-              whileHover={{ y: -1 }}
+              whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => engine.selectTowerType(null)}
-              style={buttonStyle("ghost")}
+              style={{ ...buttonStyle("ghost"), color: gameUiTheme.danger, marginTop: 6 }}
             >
-              Cancel placement
+              Cancel
             </motion.button>
           </motion.div>
-        ) : null}
+        )}
       </AnimatePresence>
-
-      <div style={{ ...panelStyle({ padding: "12px" }), marginTop: 10, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-        <TowerMetric label="Towers" value={state.towers.length.toString()} />
-        <TowerMetric label="Allies" value={state.alliedUnits.filter((unit) => unit.alive).length.toString()} />
-        <TowerMetric label="Kills" value={state.stats.enemiesKilled.toString()} />
-      </div>
     </div>
   );
 }

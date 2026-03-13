@@ -1,6 +1,6 @@
 // ============================================================
 // Fantasy Tower Defense — Game Overlay Screens
-// Clean in-game UI revamp
+// Ultra clean, less boxy design
 // ============================================================
 
 import { useState, type ReactNode } from "react";
@@ -77,9 +77,9 @@ function OverlayShell({ children }: { children: ReactNode }) {
         alignItems: "center",
         justifyContent: "center",
         padding: 24,
-        background: "rgba(7, 23, 25, 0.5)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
+        background: "rgba(4, 12, 12, 0.8)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
       }}
     >
       {children}
@@ -118,129 +118,134 @@ function ResultScreen({
 
   const statItems = win
     ? [
-        ["Final Score", stats.score.toLocaleString(), gameUiTheme.textStrong],
-        ["Gold Remaining", `${stats.gold}g`, gameUiTheme.warning],
+        ["Final Score", stats.score.toLocaleString(), gameUiTheme.accent],
+        ["Gold Left", `${stats.gold}`, gameUiTheme.gold],
         ["Enemies Slain", stats.enemiesKilled.toString(), gameUiTheme.success],
         ["Towers Built", stats.towersPlaced.toString(), gameUiTheme.info],
         ["Damage Dealt", stats.damageDealt.toLocaleString(), gameUiTheme.danger],
-        ["Waves Survived", stats.wavesSurvived.toString(), gameUiTheme.violet],
+        ["Waves Cleared", stats.wavesSurvived.toString(), gameUiTheme.violet],
       ]
     : [
-        ["Wave Reached", `${stats.wave} / ${stats.totalWaves}`, gameUiTheme.danger],
-        ["Score", stats.score.toLocaleString(), gameUiTheme.textStrong],
-        ["Enemies Slain", stats.enemiesKilled.toString(), gameUiTheme.warning],
+        ["Wave Reached", `${stats.wave} / ${stats.totalWaves}`, gameUiTheme.warning],
+        ["Score", stats.score.toLocaleString(), gameUiTheme.accent],
+        ["Enemies Slain", stats.enemiesKilled.toString(), gameUiTheme.success],
         ["Towers Built", stats.towersPlaced.toString(), gameUiTheme.info],
         ["Damage Dealt", stats.damageDealt.toLocaleString(), gameUiTheme.danger],
-        ["Gold Earned", `${stats.goldEarned}g`, gameUiTheme.warning],
+        ["Gold Earned", `${stats.goldEarned}`, gameUiTheme.gold],
       ];
 
   return (
     <OverlayShell>
       <motion.div
-        initial={{ y: 16, opacity: 0, scale: 0.98 }}
+        initial={{ y: 20, opacity: 0, scale: 0.96 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 180, damping: 18 }}
+        transition={{ type: "spring", stiffness: 200, damping: 20 }}
         style={{
-          ...panelStyle({ padding: "22px" }),
-          width: "min(560px, 100%)",
-          background: win ? gameUiTheme.surface : "rgba(250, 243, 244, 0.94)",
-          border: `1px solid ${win ? gameUiTheme.border : "rgba(214,109,120,0.22)"}`,
-          boxShadow: gameUiTheme.shadow,
+          ...panelStyle({ padding: "28px", glow: true }),
+          width: "min(420px, 100%)",
+          border: `1px solid ${win ? `${gameUiTheme.success}50` : `${gameUiTheme.danger}50`}`,
+          background: win 
+            ? `linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(10, 26, 26, 0.85))`
+            : `linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(10, 26, 26, 0.85))`,
         }}
       >
-        <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              ...sectionTitleStyle(),
-              fontSize: 30,
-              color: win ? gameUiTheme.accentStrong : gameUiTheme.danger,
-            }}
-          >
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <div style={{
+            ...sectionTitleStyle(),
+            fontSize: 28,
+            color: win ? gameUiTheme.success : gameUiTheme.danger,
+            textShadow: win 
+              ? `0 0 15px ${gameUiTheme.success}30`
+              : `0 0 15px ${gameUiTheme.danger}30`,
+          }}>
             {win ? "Victory" : "Defeat"}
           </div>
-          <div
-            style={{
-              color: gameUiTheme.muted,
-              fontFamily: gameUiFonts.body,
-              fontSize: 13,
-              lineHeight: 1.5,
-              marginTop: 8,
-              marginBottom: 18,
-            }}
-          >
+          <div style={{
+            color: gameUiTheme.muted,
+            fontFamily: gameUiFonts.body,
+            fontSize: 11,
+            marginTop: 6,
+            lineHeight: 1.4,
+          }}>
             {win
-              ? `The realm is safe. You cleared all ${stats.totalWaves} waves.`
-              : "The defense line broke. Rebuild and try a better strategy."}
+              ? `All ${stats.totalWaves} waves cleared`
+              : "The line was broken"}
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
           {statItems.map(([label, value, color]) => (
             <StatCard key={label} label={label} value={String(value)} color={String(color)} />
           ))}
         </div>
 
-        <div style={{ marginTop: 18 }}>
+        <div style={{ marginTop: 14 }}>
           {!saved ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <input
                 type="text"
-                placeholder="Enter your name"
+                placeholder="Your name..."
                 value={name}
                 maxLength={20}
                 onChange={(event) => setName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") handleSave();
-                }}
+                onKeyDown={(event) => { if (event.key === "Enter") handleSave(); }}
                 style={{
                   flex: 1,
-                  minWidth: 180,
-                  padding: "11px 12px",
-                  borderRadius: 12,
-                  border: `1px solid ${gameUiTheme.borderStrong}`,
-                  background: gameUiTheme.surfaceStrong,
-                  color: gameUiTheme.textStrong,
+                  minWidth: 140,
+                  padding: "8px 12px",
+                  borderRadius: 14,
+                  border: `1px solid ${gameUiTheme.border}`,
+                  background: "rgba(20, 50, 50, 0.4)",
+                  color: gameUiTheme.text,
                   outline: "none",
                   fontFamily: gameUiFonts.body,
-                  fontSize: 13,
+                  fontSize: 11,
                 }}
               />
               <motion.button
-                whileHover={{ y: -1 }}
+                whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSave}
                 disabled={!name.trim()}
                 style={{
                   ...buttonStyle("accent"),
-                  opacity: name.trim() ? 1 : 0.55,
-                  cursor: name.trim() ? "pointer" : "not-allowed",
+                  opacity: name.trim() ? 1 : 0.4,
                 }}
               >
-                Save Score
+                Save
               </motion.button>
             </div>
           ) : (
-            <div
-              style={{
-                ...panelStyle({ padding: "12px" }),
-                background: gameUiTheme.successSoft,
-                color: gameUiTheme.success,
-                fontFamily: gameUiFonts.body,
-                fontSize: 12,
-                textAlign: "center",
-              }}
-            >
-              Score saved to Hall of Fame.
+            <div style={{
+              padding: "10px",
+              borderRadius: 14,
+              background: `${gameUiTheme.success}10`,
+              color: gameUiTheme.success,
+              fontFamily: gameUiFonts.body,
+              fontSize: 11,
+              textAlign: "center",
+            }}>
+              Score saved
             </div>
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
-          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onRestart} style={buttonStyle(win ? "success" : "accent")}>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onRestart}
+            style={buttonStyle(win ? "success" : "accent")}
+          >
             {win ? "Play Again" : "Try Again"}
           </motion.button>
-          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onReturnToMenu} style={buttonStyle("ghost")}>
-            Return to Menu
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onReturnToMenu}
+            style={buttonStyle("ghost")}
+          >
+            Menu
           </motion.button>
         </div>
       </motion.div>
@@ -262,43 +267,56 @@ function PauseScreen({
       <motion.div
         initial={{ y: 12, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 180, damping: 18 }}
+        transition={{ type: "spring", stiffness: 200, damping: 20 }}
         style={{
-          ...panelStyle({ padding: "24px" }),
-          width: 320,
+          ...panelStyle({ padding: "24px", glow: true }),
+          width: 280,
           textAlign: "center",
-          boxShadow: gameUiTheme.shadow,
+          border: `1px solid ${gameUiTheme.borderStrong}`,
         }}
       >
-        <div style={{ ...sectionTitleStyle(), fontSize: 28 }}>Paused</div>
-        <div
-          style={{
-            color: gameUiTheme.muted,
-            fontFamily: gameUiFonts.body,
-            fontSize: 12,
-            marginTop: 8,
-            marginBottom: 18,
-          }}
-        >
-          Take a breath, then get back to the defense.
+        <div style={{ ...sectionTitleStyle(), fontSize: 22 }}>Paused</div>
+        <div style={{
+          color: gameUiTheme.muted,
+          fontFamily: gameUiFonts.body,
+          fontSize: 10,
+          marginTop: 4,
+          marginBottom: 16,
+        }}>
+          The battle awaits
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onResume} style={buttonStyle("success")}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onResume}
+            style={buttonStyle("success")}
+          >
             Resume
           </motion.button>
-          {onOpenSettings ? (
-            <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onOpenSettings} style={buttonStyle("soft")}>
+          {onOpenSettings && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={onOpenSettings}
+              style={buttonStyle("soft")}
+            >
               Settings
             </motion.button>
-          ) : null}
-          <motion.button whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }} onClick={onReturnToMenu} style={buttonStyle("danger")}>
-            Quit to Menu
+          )}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onReturnToMenu}
+            style={buttonStyle("danger")}
+          >
+            Quit
           </motion.button>
         </div>
 
-        <div style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 11, marginTop: 16 }}>
-          Press P or Space to resume.
+        <div style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 9, marginTop: 14 }}>
+          Press P to resume
         </div>
       </motion.div>
     </OverlayShell>
@@ -307,17 +325,17 @@ function PauseScreen({
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div
-      style={{
-        ...panelStyle({ padding: "12px" }),
-        background: gameUiTheme.surfaceSoft,
-        textAlign: "left",
-      }}
-    >
-      <div style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+    <div style={{
+      padding: "8px 10px",
+      background: "rgba(20, 50, 50, 0.3)",
+      borderRadius: 16,
+      textAlign: "left",
+      border: `1px solid ${gameUiTheme.border}`,
+    }}>
+      <div style={{ color: gameUiTheme.mutedSoft, fontFamily: gameUiFonts.body, fontSize: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>
         {label}
       </div>
-      <div style={{ ...metricValueStyle(color), fontSize: 18, marginTop: 6 }}>{value}</div>
+      <div style={{ ...metricValueStyle(color), fontSize: 14, marginTop: 2 }}>{value}</div>
     </div>
   );
 }

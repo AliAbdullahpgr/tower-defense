@@ -5,60 +5,87 @@ export const gameUiFonts = {
   body: "'Philosopher', serif",
   numbers: "'Cinzel', serif",
 } as const;
-
 export const gameUiTheme = {
-  page: "#eef6f4",
-  surface: "rgba(246, 251, 250, 0.92)",
-  surfaceStrong: "rgba(240, 248, 246, 0.96)",
-  surfaceSoft: "rgba(255, 255, 255, 0.76)",
-  surfaceTint: "rgba(228, 242, 239, 0.85)",
-  surfaceMuted: "rgba(221, 237, 234, 0.88)",
-  border: "rgba(37, 88, 92, 0.14)",
-  borderStrong: "rgba(37, 88, 92, 0.24)",
-  accent: "#3aa79f",
-  accentStrong: "#267e78",
-  accentSoft: "rgba(58, 167, 159, 0.14)",
-  text: "#28464b",
-  textStrong: "#16353b",
-  muted: "#618087",
-  mutedSoft: "#87a0a4",
-  success: "#4f9b7f",
-  successSoft: "rgba(79, 155, 127, 0.12)",
-  warning: "#d39754",
-  warningSoft: "rgba(211, 151, 84, 0.14)",
-  danger: "#d66d78",
-  dangerSoft: "rgba(214, 109, 120, 0.14)",
-  info: "#5d90d8",
-  infoSoft: "rgba(93, 144, 216, 0.14)",
-  violet: "#8a79d6",
-  violetSoft: "rgba(138, 121, 214, 0.12)",
-  shadow: "0 20px 48px rgba(8, 34, 38, 0.14)",
-  shadowSoft: "0 10px 24px rgba(8, 34, 38, 0.1)",
-  inset: "inset 0 1px 0 rgba(255, 255, 255, 0.45)",
-  radius: 18,
+  page: "#081014", // Deeper, slightly blueish dark stone theme
+  surface: "rgba(12, 22, 28, 0.95)",
+  surfaceStrong: "rgba(18, 30, 38, 0.98)",
+  surfaceSoft: "rgba(20, 32, 40, 0.7)",
+  surfaceTint: "rgba(124, 186, 204, 0.04)",
+  surfaceMuted: "rgba(28, 45, 54, 0.4)",
+  border: "rgba(92, 137, 148, 0.2)",
+  borderStrong: "rgba(124, 186, 204, 0.35)",
+  accent: "#2cb1c4",
+  accentStrong: "#5cdceb",
+  accentSoft: "rgba(44, 177, 196, 0.15)",
+  cyan: "#138c9e",
+  cyanSoft: "rgba(19, 140, 158, 0.1)",
+  text: "#c5e6e3",
+  textStrong: "#e8fdfa",
+  textBright: "#ffffff",
+  muted: "#739999",
+  mutedSoft: "#4a6b6b",
+  success: "#38b056",
+  successSoft: "rgba(56, 176, 86, 0.12)",
+  warning: "#df9119",
+  warningSoft: "rgba(223, 145, 25, 0.12)",
+  danger: "#d93b3b",
+  dangerSoft: "rgba(217, 59, 59, 0.12)",
+  info: "#3676db",
+  infoSoft: "rgba(54, 118, 219, 0.12)",
+  violet: "#9074d6",
+  violetSoft: "rgba(144, 116, 214, 0.12)",
+  gold: "#e6ad1c",
+  goldSoft: "rgba(230, 173, 28, 0.12)",
+  shadow: "0 6px 16px rgba(0, 0, 0, 0.6)",
+  shadowSoft: "0 3px 8px rgba(0, 0, 0, 0.4)",
+  glow: "0 0 16px rgba(44, 177, 196, 0.2)",
+  glowStrong: "0 0 24px rgba(44, 177, 196, 0.3)",
+  radius: 4,     // Sharp classic corners
+  radiusLg: 6,   // Slightly larger classic corners
 } as const;
 
 export function panelStyle(options?: {
   padding?: string;
   tint?: string;
+  glow?: boolean;
 }): CSSProperties {
   return {
     background: options?.tint || gameUiTheme.surface,
-    border: `1px solid ${gameUiTheme.border}`,
+    border: `2px solid ${gameUiTheme.border}`,
     borderRadius: `${gameUiTheme.radius}px`,
-    boxShadow: `${gameUiTheme.shadowSoft}, ${gameUiTheme.inset}`,
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
-    padding: options?.padding || "14px",
+    boxShadow: `inset 0 0 40px rgba(0,0,0,0.5), ${options?.glow
+        ? `${gameUiTheme.shadowSoft}, ${gameUiTheme.glow}`
+        : gameUiTheme.shadowSoft
+      }`,
+    padding: options?.padding || "10px",
+  };
+}
+
+export function cardStyle(options?: {
+  selected?: boolean;
+  color?: string;
+}): CSSProperties {
+  const color = options?.color || gameUiTheme.accent;
+  return {
+    background: options?.selected
+      ? `linear-gradient(180deg, ${color}15, rgba(12, 22, 28, 0.95))`
+      : "linear-gradient(180deg, rgba(24, 36, 44, 0.8), rgba(12, 22, 28, 0.95))",
+    border: `2px solid ${options?.selected ? color : gameUiTheme.border}`,
+    borderRadius: "4px",
+    boxShadow: options?.selected
+      ? `0 2px 12px ${color}10`
+      : "none",
+    transition: "all 0.2s ease",
   };
 }
 
 export function sectionTitleStyle(): CSSProperties {
   return {
     fontFamily: gameUiFonts.display,
-    color: gameUiTheme.textStrong,
-    fontSize: "15px",
-    letterSpacing: "0.6px",
+    color: gameUiTheme.accent,
+    fontSize: "12px",
+    letterSpacing: "1.5px",
+    textShadow: `0 0 6px ${gameUiTheme.accent}20`,
   };
 }
 
@@ -66,21 +93,21 @@ export function chipStyle(options?: {
   active?: boolean;
   color?: string;
   background?: string;
+  size?: "sm" | "md";
 }): CSSProperties {
   const color = options?.color || gameUiTheme.accent;
+  const size = options?.size || "md";
   return {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "999px",
-    padding: "5px 10px",
+    borderRadius: "2px",
+    padding: size === "sm" ? "2px 6px" : "4px 10px",
     border: `1px solid ${options?.active ? color : gameUiTheme.border}`,
-    background:
-      options?.background ||
-      (options?.active ? `${color}18` : gameUiTheme.surfaceSoft),
+    background: options?.background || (options?.active ? `${color}10` : "rgba(20, 50, 50, 0.3)"),
     color: options?.active ? color : gameUiTheme.muted,
-    fontSize: "10px",
-    fontWeight: 700,
+    fontSize: size === "sm" ? "9px" : "10px",
+    fontWeight: 500,
     fontFamily: gameUiFonts.body,
     letterSpacing: "0.3px",
   };
@@ -91,44 +118,44 @@ export function buttonStyle(
 ): CSSProperties {
   const map = {
     accent: {
-      color: gameUiTheme.accentStrong,
-      background: `linear-gradient(180deg, ${gameUiTheme.surfaceStrong}, #d9f1ee)`,
-      border: `1px solid ${gameUiTheme.accent}`,
-      shadow: `0 8px 16px ${gameUiTheme.accentSoft}`,
+      color: gameUiTheme.textBright,
+      background: `linear-gradient(180deg, rgba(44, 177, 196, 0.6), rgba(19, 140, 158, 0.8))`,
+      border: `2px solid ${gameUiTheme.accentStrong}`,
+      shadow: `inset 0 1px 0 rgba(255,255,255,0.2), ${gameUiTheme.glow}`,
     },
     soft: {
       color: gameUiTheme.text,
-      background: gameUiTheme.surfaceSoft,
-      border: `1px solid ${gameUiTheme.border}`,
-      shadow: gameUiTheme.shadowSoft,
+      background: "linear-gradient(180deg, rgba(38, 56, 64, 0.8), rgba(20, 32, 40, 0.9))",
+      border: `2px solid ${gameUiTheme.borderStrong}`,
+      shadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
     },
     danger: {
-      color: gameUiTheme.danger,
-      background: `linear-gradient(180deg, ${gameUiTheme.surfaceStrong}, #f8e5e8)`,
-      border: `1px solid ${gameUiTheme.danger}`,
-      shadow: `0 8px 16px ${gameUiTheme.dangerSoft}`,
+      color: gameUiTheme.textBright,
+      background: `linear-gradient(180deg, rgba(217, 59, 59, 0.6), rgba(168, 32, 32, 0.8))`,
+      border: `2px solid #ef4444`,
+      shadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
     },
     success: {
-      color: gameUiTheme.success,
-      background: `linear-gradient(180deg, ${gameUiTheme.surfaceStrong}, #e3f3ec)`,
-      border: `1px solid ${gameUiTheme.success}`,
-      shadow: `0 8px 16px ${gameUiTheme.successSoft}`,
+      color: gameUiTheme.textBright,
+      background: `linear-gradient(180deg, rgba(56, 176, 86, 0.6), rgba(34, 122, 54, 0.8))`,
+      border: `2px solid #4ade80`,
+      shadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
     },
     ghost: {
       color: gameUiTheme.muted,
       background: "transparent",
-      border: `1px solid ${gameUiTheme.border}`,
+      border: "2px solid transparent",
       shadow: "none",
     },
   } as const;
 
   return {
     ...map[kind],
-    borderRadius: "12px",
-    padding: "9px 14px",
+    borderRadius: "4px",
+    padding: "6px 14px",
     fontFamily: gameUiFonts.body,
-    fontSize: "12px",
-    fontWeight: 700,
+    fontSize: "11px",
+    fontWeight: 500,
     cursor: "pointer",
     transition: "all 0.18s ease",
   };
@@ -136,10 +163,11 @@ export function buttonStyle(
 
 export function metricValueStyle(color?: string): CSSProperties {
   return {
-    color: color || gameUiTheme.textStrong,
+    color: color || gameUiTheme.accentStrong,
     fontFamily: gameUiFonts.numbers,
-    fontSize: "15px",
-    fontWeight: 700,
+    fontSize: "14px",
+    fontWeight: 600,
     lineHeight: 1,
+    textShadow: `0 0 8px ${(color || gameUiTheme.accent)}25`,
   };
 }
