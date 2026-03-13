@@ -64,6 +64,7 @@ export interface Enemy {
   animTimer: number;
   facingLeft: boolean;
   walkCycle: number;
+  moveAngle: number; // Direction of movement in radians (0 = right, PI/2 = down, PI = left, -PI/2 = up)
   // Special flags
   isFlying: boolean;
   isArmored: boolean;   // immune to physical (archer/cannon/ballista)

@@ -474,6 +474,7 @@ export class GameEngine {
       animTimer: 0,
       facingLeft: false,
       walkCycle: Math.random(),
+      moveAngle: 0,
       isFlying: def.isFlying || false,
       isArmored: def.isArmored || false,
       isTunneling: false,
@@ -601,6 +602,7 @@ export class GameEngine {
         enemy.y += (dy / dist) * moveSpeed;
         enemy.walkCycle = (enemy.walkCycle + (dt / 1000) * enemy.speed * 3) % 1;
         enemy.facingLeft = dx < 0;
+        enemy.moveAngle = Math.atan2(dy, dx); // Store movement direction
       }
     }
   }

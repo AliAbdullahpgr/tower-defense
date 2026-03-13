@@ -170,6 +170,7 @@ interface EnemySpriteMapping {
   hasSpecial: boolean;
   hasWalk2: boolean;
   hasDeath2: boolean;
+  hasDirections?: boolean; // true = has 4 direction sprites (south, east, north, west)
 }
 
 const ENEMY_SPRITE_MAP: Partial<Record<EnemyType, EnemySpriteMapping>> = {
@@ -202,19 +203,19 @@ const ENEMY_SPRITE_MAP: Partial<Record<EnemyType, EnemySpriteMapping>> = {
   flyer:         { folder: 'enemies/largeMob3', frameSize: 96, frameCount: 6, walkAction: 'Fly', hasAttack: true, hasSpecial: true, hasWalk2: false, hasDeath2: false },
   splitterBoss:  { folder: 'enemies/largeMob3', frameSize: 96, frameCount: 6, walkAction: 'Fly', hasAttack: true, hasSpecial: true, hasWalk2: false, hasDeath2: false },
 
-  // Boss Dragon: AI-generated pixel art dragon boss with walk animation
+// Boss Dragon: AI-generated pixel art dragon boss with walk animation
   bossDragon:    { folder: 'enemies/bossDragon', frameSize: 96, frameCount: 6, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
   
-  // Quadruped Bosses (AI-generated)
-  bossQuadrupedBear:     { folder: 'enemies/bossQuadrupeds/demonic_bear', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
-  bossQuadrupedHorse:    { folder: 'enemies/bossQuadrupeds/undead_horse', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
-  bossQuadrupedLion:     { folder: 'enemies/bossQuadrupeds/crystal_lion', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
-  bossQuadrupedWolf:     { folder: 'enemies/bossQuadrupeds/war_wolf', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
-  bossQuadrupedStoneBear: { folder: 'enemies/bossQuadrupeds/stone_bear', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  // Quadruped Bosses (AI-generated) - 4 direction sprites
+  bossQuadrupedBear:     { folder: 'enemies/bossQuadrupeds/demonic_bear', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
+  bossQuadrupedHorse:    { folder: 'enemies/bossQuadrupeds/undead_horse', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
+  bossQuadrupedLion:     { folder: 'enemies/bossQuadrupeds/crystal_lion', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
+  bossQuadrupedWolf:     { folder: 'enemies/bossQuadrupeds/war_wolf', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
+  bossQuadrupedStoneBear: { folder: 'enemies/bossQuadrupeds/stone_bear', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
   
-  // Epic Bosses (AI-generated)
-  bossTitan:    { folder: 'enemies/bossTitan', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
-  bossSerpent:  { folder: 'enemies/bossSerpent', frameSize: 56, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
+  // Epic Bosses (AI-generated) - 4 direction sprites
+  bossTitan:    { folder: 'enemies/bossTitan', frameSize: 48, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
+  bossSerpent:  { folder: 'enemies/bossSerpent', frameSize: 56, frameCount: 1, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false, hasDirections: true },
 };
 
 // ============================================================
@@ -314,6 +315,7 @@ function getEnemySpriteSheet(
  * Draw an enemy sprite. Returns true if sprite was drawn, false for fallback.
  * walkCycle: 0-1 continuous walk cycle value
  * dying: whether enemy is in death animation
+ * direction: 'D' (down/south), 'U' (up/north), 'S' (side/west/east)
  */
 export function drawEnemySprite(
   ctx: CanvasRenderingContext2D,
@@ -322,13 +324,19 @@ export function drawEnemySprite(
   size: number,
   walkCycle: number,
   dying: boolean,
-  facingLeft: boolean
+  facingLeft: boolean,
+  direction: EnemySpriteDir = 'S'
 ): boolean {
   const mapping = ENEMY_SPRITE_MAP[enemyType];
   if (!mapping) return false;
 
   const action = dying ? 'Death' : mapping.walkAction;
-  const config = getEnemySpriteSheet(enemyType, action, 'S');
+  
+  // Use direction-based sprites for enemies with hasDirections
+  const useDirection = mapping.hasDirections;
+  const spriteDirection = useDirection ? direction : 'S';
+  
+  const config = getEnemySpriteSheet(enemyType, action, spriteDirection);
   if (!config) return false;
 
   // Calculate frame index from walk cycle (0-1 maps to 0-5)
@@ -343,9 +351,9 @@ export function drawEnemySprite(
 
   ctx.save();
 
-  // Handle facing direction — sprites face LEFT by default (towards entry point)
-  // When enemy walks RIGHT (facingLeft=false), flip to match movement direction
-  if (!facingLeft) {
+  // For enemies with direction sprites, don't flip
+  // For others, flip based on facingLeft
+  if (!useDirection && !facingLeft) {
     ctx.scale(-1, 1);
     ctx.translate(-x * 2, 0);
   }

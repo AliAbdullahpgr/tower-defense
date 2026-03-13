@@ -1557,13 +1557,25 @@ function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy) {
   const deathProgress = dying ? Math.max(0, 1 - (dyingTimer || 0) / 300) : 0;
   const animCycle = dying ? deathProgress : (walkCycle || 0);
 
+  // Calculate direction for 4-directional sprites
+  // moveAngle: 0 = right, PI/2 = down, PI = left, -PI/2 = up
+  const moveAngle = enemy.moveAngle || 0;
+  let spriteDir: 'S' | 'D' | 'U' = 'S';
+  if (moveAngle > Math.PI * 0.25 && moveAngle < Math.PI * 0.75) {
+    spriteDir = 'D'; // moving down (south)
+  } else if (moveAngle < -Math.PI * 0.25 && moveAngle > -Math.PI * 0.75) {
+    spriteDir = 'U'; // moving up (north)
+  } else {
+    spriteDir = 'S'; // moving left/right (side)
+  }
+
   // Try Foozle sprites first for new enemy types
   const foozleDrawn = drawFoozleEnemySprite(ctx, enemy.type, x, y, size, animCycle, dying, facingLeft);
 
   const spriteDrawn = foozleDrawn || drawEnemySprite(
     ctx, enemy.type, x, y, size,
     animCycle,
-    dying, facingLeft
+    dying, facingLeft, spriteDir
   );
 
   if (!spriteDrawn) {
