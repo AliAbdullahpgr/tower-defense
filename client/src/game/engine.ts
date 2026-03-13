@@ -368,7 +368,7 @@ export class GameEngine {
   private generateEndlessWave(waveNum: number): { waveNumber: number; enemies: Array<{ type: EnemyType; count: number; delay: number }>; reward: number; isBoss: boolean; bossType?: EnemyType } {
     const endlessWave = waveNum - WAVE_CONFIGS.length; // How many waves past the end
     const scale = 1 + endlessWave * 0.18;
-    const allTypes: EnemyType[] = ['goblin', 'imp', 'skeleton', 'werewolf', 'orc', 'golem', 'troll', 'banshee', 'darkKnight', 'armored', 'healer', 'tunneler', 'flyer'];
+    const allTypes: EnemyType[] = ['goblin', 'imp', 'skeleton', 'werewolf', 'orc', 'golem', 'troll', 'banshee', 'darkKnight', 'armored', 'healer', 'tunneler', 'flyer', 'firebug', 'leafbug', 'scorpion', 'magmaCrab'];
     const bossTypes: EnemyType[] = ['dragon', 'splitterBoss'];
 
     // Seeded pseudo-random based on wave number for variety
@@ -393,7 +393,7 @@ export class GameEngine {
       usedTypes.add(type);
 
       // Scale count based on enemy "weight" — more for weak enemies, fewer for strong
-      const weight = { goblin: 0.3, imp: 0.4, skeleton: 0.5, werewolf: 0.7, orc: 0.8, golem: 1.2, troll: 1.3, banshee: 0.9, darkKnight: 1.0, armored: 1.1, healer: 1.5, tunneler: 0.8, flyer: 0.9 };
+      const weight = { goblin: 0.3, imp: 0.4, skeleton: 0.5, werewolf: 0.7, orc: 0.8, golem: 1.2, troll: 1.3, banshee: 0.9, darkKnight: 1.0, armored: 1.1, healer: 1.5, tunneler: 0.8, flyer: 0.9, firebug: 0.35, leafbug: 0.25, scorpion: 0.7, magmaCrab: 1.2 };
       const w = weight[type as keyof typeof weight] || 1.0;
       const baseCount = Math.max(2, Math.round((6 / w) * scale));
       const count = baseCount + Math.floor(seed(waveNum * 11 + g * 17) * 3);
@@ -1282,6 +1282,7 @@ export class GameEngine {
       attackAnim: 0,
       attackAnimTimer: 0,
       powerBonus: isPowerSpot ? 1 : 0,
+      spriteVariant: undefined,
     };
 
     this.state.towers.push(tower);
@@ -1291,7 +1292,7 @@ export class GameEngine {
     this.state.stats.towerKills[type] = this.state.stats.towerKills[type] || 0;
 
     if (isPowerSpot) {
-      this.addFloatingText(tower.x, tower.y - 30, '⭐ Power Spot! +25% bonus', '#FFD700', 1.2);
+      this.addFloatingText(tower.x, tower.y - 30, 'Power Spot! +25% bonus', '#FFD700', 1.2);
     } else {
       this.addFloatingText(tower.x, tower.y - 30, 'Placed!', '#F4C842');
     }
@@ -1311,7 +1312,9 @@ export class GameEngine {
     tower.upgradeCost = Math.round(tower.upgradeCost * 1.8);
     tower.sellValue = Math.round(tower.sellValue * 1.4);
     if (tower.spawnCooldown) tower.spawnCooldown = Math.round(tower.spawnCooldown * 0.75);
-    this.addFloatingText(tower.x, tower.y - 30, `⬆ Level ${tower.level}!`, '#00E5FF', 1.2);
+    // Clear any manual sprite override so the level-based structure auto-applies
+    tower.spriteVariant = undefined;
+    this.addFloatingText(tower.x, tower.y - 30, `Level ${tower.level}!`, '#00E5FF', 1.2);
     return true;
   }
 
@@ -1353,6 +1356,11 @@ export class GameEngine {
       }
     }
     this.state.activeSynergies = synergies;
+  }
+
+  setTowerSpriteVariant(towerId: string, variant: number) {
+    const tower = this.state.towers.find(t => t.id === towerId);
+    if (tower) { tower.spriteVariant = variant; this.notify(); }
   }
 
   setTargetingMode(towerId: string, mode: TargetingMode) {

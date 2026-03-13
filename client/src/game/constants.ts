@@ -407,6 +407,39 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDefinition> = {
     isBoss: true,
     splitCount: 2,
   },
+  // === NEW: Foozle Spire Enemy Pack 2 ===
+  firebug: {
+    type: 'firebug', name: 'Firebug',
+    hp: 120, speed: 1.9, reward: 18, damage: 2, size: 18,
+    color: '#FF5722', emoji: '🔥',
+    description: 'A blazing insect that ignites everything it touches. Very fast.',
+  },
+  leafbug: {
+    type: 'leafbug', name: 'Leafbug',
+    hp: 80, speed: 2.1, reward: 14, damage: 1, size: 15,
+    color: '#7CB342', emoji: '🌿',
+    description: 'A nimble forest insect. Weak but numerous and agile.',
+  },
+  magmaCrab: {
+    type: 'magmaCrab', name: 'Magma Crab',
+    hp: 400, speed: 0.75, reward: 40, damage: 3, size: 28,
+    color: '#BF360C', emoji: '🦀',
+    description: 'Armored volcanic crab. Extremely tough shell, slow and relentless.',
+    isArmored: true,
+  },
+  scorpion: {
+    type: 'scorpion', name: 'Scorpion',
+    hp: 200, speed: 1.5, reward: 28, damage: 3, size: 22,
+    color: '#F9A825', emoji: '🦂',
+    description: 'Venomous desert predator. Poisons towers it passes near.',
+  },
+  bossDragon: {
+    type: 'bossDragon', name: 'Boss Dragon',
+    hp: 2000, speed: 0.8, reward: 250, damage: 12, size: 40,
+    color: '#B71C1C', emoji: '🐉',
+    description: 'BOSS: A massive crimson dragon. Terrifyingly powerful.',
+    isBoss: true,
+  },
 };
 
 // ============================================================
@@ -415,25 +448,25 @@ export const ENEMY_DEFINITIONS: Record<string, EnemyDefinition> = {
 
 export const WAVE_CONFIGS: WaveConfig[] = [
   { waveNumber: 1,  enemies: [{ type: 'goblin', count: 8, delay: 800 }], reward: 30 },
-  { waveNumber: 2,  enemies: [{ type: 'goblin', count: 6, delay: 700 }, { type: 'imp', count: 5, delay: 600 }], reward: 40 },
-  { waveNumber: 3,  enemies: [{ type: 'skeleton', count: 8, delay: 900 }, { type: 'goblin', count: 6, delay: 600 }], reward: 50 },
-  { waveNumber: 4,  enemies: [{ type: 'werewolf', count: 4, delay: 1000 }, { type: 'imp', count: 6, delay: 500 }], reward: 60, isBoss: false },
-  { waveNumber: 5,  enemies: [{ type: 'orc', count: 5, delay: 1200 }, { type: 'skeleton', count: 8, delay: 700 }], reward: 75 },
-  { waveNumber: 6,  enemies: [{ type: 'flyer', count: 4, delay: 900 }, { type: 'goblin', count: 10, delay: 500 }], reward: 85 },
-  { waveNumber: 7,  enemies: [{ type: 'armored', count: 3, delay: 1500 }, { type: 'orc', count: 5, delay: 900 }], reward: 95 },
-  { waveNumber: 8,  enemies: [{ type: 'healer', count: 2, delay: 2000 }, { type: 'orc', count: 6, delay: 800 }, { type: 'goblin', count: 8, delay: 500 }], reward: 110, isBoss: true, bossType: 'splitterBoss' },
-  { waveNumber: 9,  enemies: [{ type: 'tunneler', count: 5, delay: 1100 }, { type: 'werewolf', count: 5, delay: 800 }], reward: 120 },
-  { waveNumber: 10, enemies: [{ type: 'golem', count: 3, delay: 2000 }, { type: 'flyer', count: 5, delay: 700 }, { type: 'healer', count: 2, delay: 1500 }], reward: 140 },
-  { waveNumber: 11, enemies: [{ type: 'troll', count: 3, delay: 1800 }, { type: 'armored', count: 4, delay: 1200 }, { type: 'imp', count: 10, delay: 400 }], reward: 160 },
-  { waveNumber: 12, enemies: [{ type: 'banshee', count: 4, delay: 1000 }, { type: 'darkKnight', count: 3, delay: 1400 }, { type: 'flyer', count: 6, delay: 600 }], reward: 180, isBoss: true, bossType: 'splitterBoss' },
-  { waveNumber: 13, enemies: [{ type: 'darkKnight', count: 5, delay: 1200 }, { type: 'tunneler', count: 4, delay: 1000 }, { type: 'healer', count: 3, delay: 1500 }], reward: 200 },
+  { waveNumber: 2,  enemies: [{ type: 'goblin', count: 6, delay: 700 }, { type: 'leafbug', count: 5, delay: 500 }], reward: 40 },
+  { waveNumber: 3,  enemies: [{ type: 'skeleton', count: 8, delay: 900 }, { type: 'goblin', count: 6, delay: 600 }, { type: 'bossDragon', count: 1, delay: 3000 }], reward: 50, isBoss: true, bossType: 'bossDragon' },
+  { waveNumber: 4,  enemies: [{ type: 'werewolf', count: 4, delay: 1000 }, { type: 'firebug', count: 6, delay: 450 }], reward: 60, isBoss: false },
+  { waveNumber: 5,  enemies: [{ type: 'orc', count: 5, delay: 1200 }, { type: 'scorpion', count: 4, delay: 900 }], reward: 75 },
+  { waveNumber: 6,  enemies: [{ type: 'flyer', count: 4, delay: 900 }, { type: 'leafbug', count: 10, delay: 400 }, { type: 'goblin', count: 8, delay: 600 }], reward: 85 },
+  { waveNumber: 7,  enemies: [{ type: 'armored', count: 3, delay: 1500 }, { type: 'firebug', count: 8, delay: 400 }, { type: 'orc', count: 4, delay: 900 }], reward: 95 },
+  { waveNumber: 8,  enemies: [{ type: 'healer', count: 2, delay: 2000 }, { type: 'magmaCrab', count: 2, delay: 2500 }, { type: 'goblin', count: 8, delay: 500 }], reward: 110, isBoss: true, bossType: 'splitterBoss' },
+  { waveNumber: 9,  enemies: [{ type: 'tunneler', count: 5, delay: 1100 }, { type: 'scorpion', count: 5, delay: 800 }, { type: 'werewolf', count: 3, delay: 900 }], reward: 120 },
+  { waveNumber: 10, enemies: [{ type: 'golem', count: 3, delay: 2000 }, { type: 'flyer', count: 5, delay: 700 }, { type: 'magmaCrab', count: 2, delay: 2000 }], reward: 140 },
+  { waveNumber: 11, enemies: [{ type: 'troll', count: 3, delay: 1800 }, { type: 'armored', count: 4, delay: 1200 }, { type: 'firebug', count: 12, delay: 350 }], reward: 160 },
+  { waveNumber: 12, enemies: [{ type: 'banshee', count: 4, delay: 1000 }, { type: 'darkKnight', count: 3, delay: 1400 }, { type: 'scorpion', count: 5, delay: 700 }], reward: 180, isBoss: true, bossType: 'splitterBoss' },
+  { waveNumber: 13, enemies: [{ type: 'darkKnight', count: 5, delay: 1200 }, { type: 'magmaCrab', count: 3, delay: 1800 }, { type: 'healer', count: 3, delay: 1500 }], reward: 200 },
   { waveNumber: 14, enemies: [{ type: 'golem', count: 4, delay: 1800 }, { type: 'banshee', count: 5, delay: 900 }, { type: 'armored', count: 4, delay: 1300 }], reward: 220 },
-  { waveNumber: 15, enemies: [{ type: 'dragon', count: 1, delay: 3000 }, { type: 'darkKnight', count: 6, delay: 1000 }, { type: 'troll', count: 3, delay: 1600 }], reward: 250, isBoss: true, bossType: 'dragon' },
-  { waveNumber: 16, enemies: [{ type: 'dragon', count: 2, delay: 4000 }, { type: 'armored', count: 5, delay: 1200 }, { type: 'flyer', count: 8, delay: 600 }], reward: 280 },
-  { waveNumber: 17, enemies: [{ type: 'splitterBoss', count: 1, delay: 5000 }, { type: 'darkKnight', count: 8, delay: 900 }, { type: 'healer', count: 4, delay: 1200 }], reward: 320, isBoss: true, bossType: 'splitterBoss' },
-  { waveNumber: 18, enemies: [{ type: 'dragon', count: 2, delay: 3500 }, { type: 'golem', count: 5, delay: 1800 }, { type: 'banshee', count: 6, delay: 800 }, { type: 'tunneler', count: 6, delay: 900 }], reward: 360 },
-  { waveNumber: 19, enemies: [{ type: 'splitterBoss', count: 2, delay: 6000 }, { type: 'dragon', count: 2, delay: 4000 }, { type: 'armored', count: 6, delay: 1100 }], reward: 400, isBoss: true },
-  { waveNumber: 20, enemies: [{ type: 'dragon', count: 4, delay: 3000 }, { type: 'splitterBoss', count: 2, delay: 5000 }, { type: 'darkKnight', count: 10, delay: 800 }, { type: 'flyer', count: 10, delay: 500 }], reward: 500, isBoss: true, bossType: 'dragon' },
+  { waveNumber: 15, enemies: [{ type: 'dragon', count: 1, delay: 3000 }, { type: 'darkKnight', count: 6, delay: 1000 }, { type: 'magmaCrab', count: 3, delay: 1600 }], reward: 250, isBoss: true, bossType: 'dragon' },
+  { waveNumber: 16, enemies: [{ type: 'dragon', count: 2, delay: 4000 }, { type: 'armored', count: 5, delay: 1200 }, { type: 'scorpion', count: 8, delay: 600 }], reward: 280 },
+  { waveNumber: 17, enemies: [{ type: 'splitterBoss', count: 1, delay: 5000 }, { type: 'darkKnight', count: 8, delay: 900 }, { type: 'firebug', count: 14, delay: 350 }], reward: 320, isBoss: true, bossType: 'splitterBoss' },
+  { waveNumber: 18, enemies: [{ type: 'dragon', count: 2, delay: 3500 }, { type: 'magmaCrab', count: 5, delay: 1800 }, { type: 'banshee', count: 6, delay: 800 }, { type: 'scorpion', count: 6, delay: 700 }], reward: 360 },
+  { waveNumber: 19, enemies: [{ type: 'splitterBoss', count: 2, delay: 6000 }, { type: 'dragon', count: 2, delay: 4000 }, { type: 'magmaCrab', count: 4, delay: 1800 }], reward: 400, isBoss: true },
+  { waveNumber: 20, enemies: [{ type: 'dragon', count: 4, delay: 3000 }, { type: 'splitterBoss', count: 2, delay: 5000 }, { type: 'magmaCrab', count: 6, delay: 1600 }, { type: 'firebug', count: 15, delay: 300 }], reward: 500, isBoss: true, bossType: 'dragon' },
 ];
 
 // ============================================================

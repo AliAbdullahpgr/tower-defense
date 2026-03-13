@@ -268,7 +268,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(ellipse at center, rgba(13,5,32,0.3) 0%, rgba(13,5,32,0.7) 100%)',
+          background: 'radial-gradient(ellipse at center, rgba(10,26,26,0.3) 0%, rgba(5,15,15,0.7) 100%)',
         }}
       />
 
@@ -297,8 +297,8 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             style={{
               fontFamily: "'Uncial Antiqua', serif",
               fontSize: 'clamp(28px, 5vw, 52px)',
-              color: '#fbbf24',
-              textShadow: '0 0 30px rgba(251,191,36,0.5), 0 2px 8px rgba(0,0,0,0.8)',
+              color: '#4dd0e1',
+              textShadow: '0 0 30px rgba(77,208,225,0.5), 0 2px 8px rgba(0,0,0,0.8)',
               letterSpacing: '3px',
               lineHeight: 1.1,
             }}
@@ -309,7 +309,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             style={{
               fontFamily: "'Philosopher', serif",
               fontSize: 'clamp(11px, 1.5vw, 14px)',
-              color: '#d97706',
+              color: '#67e8f9',
               marginTop: '6px',
               letterSpacing: '4px',
               textTransform: 'uppercase',
@@ -336,8 +336,8 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
           {/* Map Selection */}
           <div
             style={{
-              background: 'rgba(13,7,2,0.85)',
-              border: '1px solid #78350f',
+              background: 'rgba(10,26,26,0.85)',
+              border: '1px solid #2a6a6a',
               borderRadius: '12px',
               padding: '16px',
               minWidth: '240px',
@@ -348,7 +348,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             <div
               style={{
                 fontFamily: "'Uncial Antiqua', serif",
-                color: '#fbbf24',
+                color: '#4dd0e1',
                 fontSize: '13px',
                 textAlign: 'center',
                 marginBottom: '10px',
@@ -371,8 +371,8 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
                       gap: '10px',
                       padding: '8px 10px',
                       borderRadius: '8px',
-                      border: isSelected ? `2px solid ${info.color}` : '2px solid rgba(120,53,15,0.4)',
-                      background: isSelected ? `${info.color}22` : 'rgba(45,26,8,0.6)',
+                      border: isSelected ? `2px solid ${info.color}` : '2px solid rgba(74,138,138,0.4)',
+                      background: isSelected ? `${info.color}22` : 'rgba(10,40,40,0.6)',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.15s',
@@ -385,16 +385,16 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
                           fontFamily: "'Philosopher', serif",
                           fontWeight: 'bold',
                           fontSize: '12px',
-                          color: isSelected ? info.color : '#fde68a',
+                          color: isSelected ? info.color : '#a7f3d0',
                         }}
                       >
                         {info.name}
                       </div>
-                      <div style={{ fontSize: '10px', color: '#78350f', marginTop: '2px' }}>
+                      <div style={{ fontSize: '10px', color: '#4a8a8a', marginTop: '2px' }}>
                         {info.desc}
                       </div>
-                      <div style={{ fontSize: '8px', color: '#92400e', marginTop: '1px' }}>
-                        {'★'.repeat(MAP_CONFIGS[mapId].difficulty)}{'☆'.repeat(5 - MAP_CONFIGS[mapId].difficulty)}
+                      <div style={{ fontSize: '8px', color: '#2a8a8a', marginTop: '1px' }}>
+                        {'* '.repeat(MAP_CONFIGS[mapId].difficulty).trim()}
                       </div>
                     </div>
                   </button>
@@ -406,8 +406,8 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
           {/* Difficulty Selection */}
           <div
             style={{
-              background: 'rgba(13,7,2,0.85)',
-              border: '1px solid #78350f',
+              background: 'rgba(10,26,26,0.85)',
+              border: '1px solid #2a6a6a',
               borderRadius: '12px',
               padding: '16px',
               minWidth: '200px',
@@ -418,7 +418,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             <div
               style={{
                 fontFamily: "'Uncial Antiqua', serif",
-                color: '#fbbf24',
+                color: '#4dd0e1',
                 fontSize: '13px',
                 textAlign: 'center',
                 marginBottom: '10px',
@@ -438,8 +438,8 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
                     style={{
                       padding: '10px 12px',
                       borderRadius: '8px',
-                      border: isSelected ? `2px solid ${info.color}` : '2px solid rgba(120,53,15,0.4)',
-                      background: isSelected ? `${info.color}22` : 'rgba(45,26,8,0.6)',
+                      border: isSelected ? `2px solid ${info.color}` : '2px solid rgba(74,138,138,0.4)',
+                      background: isSelected ? `${info.color}22` : 'rgba(10,40,40,0.6)',
                       cursor: 'pointer',
                       textAlign: 'left',
                       transition: 'all 0.15s',
@@ -450,12 +450,12 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
                         fontFamily: "'Philosopher', serif",
                         fontWeight: 'bold',
                         fontSize: '12px',
-                        color: isSelected ? info.color : '#fde68a',
+                        color: isSelected ? info.color : '#a7f3d0',
                       }}
                     >
                       {info.name}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#78350f', marginTop: '2px' }}>
+                    <div style={{ fontSize: '10px', color: '#4a8a8a', marginTop: '2px' }}>
                       {info.desc}
                     </div>
                   </button>
@@ -467,8 +467,8 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
           {/* How to Play */}
           <div
             style={{
-              background: 'rgba(13,7,2,0.85)',
-              border: '1px solid #78350f',
+              background: 'rgba(10,26,26,0.85)',
+              border: '1px solid #2a6a6a',
               borderRadius: '12px',
               padding: '16px',
               minWidth: '200px',
@@ -479,7 +479,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             <div
               style={{
                 fontFamily: "'Uncial Antiqua', serif",
-                color: '#fbbf24',
+                color: '#4dd0e1',
                 fontSize: '13px',
                 textAlign: 'center',
                 marginBottom: '10px',
@@ -488,15 +488,15 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             >
               How to Play
             </div>
-            <div style={{ fontSize: '10px', color: '#d97706', lineHeight: 1.8 }}>
-              <div>⚔ Select a tower from the right panel</div>
-              <div>🏰 Click grass tiles to place towers</div>
-              <div>💰 Earn gold by defeating enemies</div>
-              <div>⬆ Upgrade towers for more power</div>
-              <div>⚡ Use active abilities in battle</div>
-              <div>🐺 Infantry/Hero towers spawn allies</div>
-              <div>∞ Toggle Endless Mode for infinite waves</div>
-              <div>1× 2× 4× Speed control in the HUD</div>
+            <div style={{ fontSize: '10px', color: '#67e8f9', lineHeight: 1.8 }}>
+              <div>Select a tower from the right panel</div>
+              <div>Click grass tiles to place towers</div>
+              <div>Earn gold by defeating enemies</div>
+              <div>Upgrade towers for more power</div>
+              <div>Use active abilities in battle</div>
+              <div>Infantry/Hero towers spawn allies</div>
+              <div>Toggle Endless Mode for infinite waves</div>
+              <div>1x 2x 4x Speed control in the HUD</div>
             </div>
           </div>
         </motion.div>
@@ -511,19 +511,19 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
           onClick={() => onStart(selectedMap, selectedDifficulty)}
           style={{
             padding: '14px 48px',
-            background: 'linear-gradient(135deg, #78350f, #b45309, #78350f)',
-            border: '2px solid #fbbf24',
+            background: 'linear-gradient(135deg, #0d5c5c, #0e7490, #0d5c5c)',
+            border: '2px solid #4dd0e1',
             borderRadius: '10px',
-            color: '#fde68a',
+            color: '#a7f3d0',
             fontFamily: "'Uncial Antiqua', serif",
             fontSize: '18px',
             letterSpacing: '2px',
             cursor: 'pointer',
-            boxShadow: '0 0 30px rgba(251,191,36,0.3), 0 4px 16px rgba(0,0,0,0.5)',
+            boxShadow: '0 0 30px rgba(77,208,225,0.3), 0 4px 16px rgba(0,0,0,0.5)',
             transition: 'all 0.2s',
           }}
         >
-          ⚔ Begin the Battle ⚔
+          Begin the Battle
         </motion.button>
 
         {/* Leaderboard toggle */}
@@ -535,7 +535,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
           style={{
             background: 'none',
             border: 'none',
-            color: '#78350f',
+            color: '#4a8a8a',
             fontFamily: "'Philosopher', serif",
             fontSize: '12px',
             cursor: 'pointer',
@@ -551,8 +551,8 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             style={{
-              background: 'rgba(13,7,2,0.9)',
-              border: '1px solid #78350f',
+              background: 'rgba(10,26,26,0.9)',
+              border: '1px solid #2a6a6a',
               borderRadius: '10px',
               padding: '14px',
               minWidth: '320px',
@@ -563,7 +563,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
             <div
               style={{
                 fontFamily: "'Uncial Antiqua', serif",
-                color: '#fbbf24',
+                color: '#4dd0e1',
                 fontSize: '14px',
                 textAlign: 'center',
                 marginBottom: '10px',
@@ -572,7 +572,7 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
               Hall of Fame
             </div>
             {highScores.length === 0 ? (
-              <div style={{ color: '#78350f', fontSize: '11px', textAlign: 'center' }}>
+              <div style={{ color: '#2a6a6a', fontSize: '11px', textAlign: 'center' }}>
                 No scores yet — be the first champion!
               </div>
             ) : (
@@ -586,16 +586,16 @@ export default function MenuScreen({ onStart }: MenuScreenProps) {
                       alignItems: 'center',
                       padding: '4px 8px',
                       borderRadius: '4px',
-                      background: i === 0 ? 'rgba(120,80,0,0.3)' : 'rgba(45,26,8,0.4)',
+                      background: i === 0 ? 'rgba(77,208,225,0.2)' : 'rgba(42,138,138,0.15)',
                       fontSize: '10px',
                     }}
                   >
-                    <span style={{ color: i === 0 ? '#FFD700' : '#d97706', fontWeight: 'bold', width: '20px' }}>
+                    <span style={{ color: i === 0 ? '#4dd0e1' : '#67e8f9', fontWeight: 'bold', width: '20px' }}>
                       #{i + 1}
                     </span>
-                    <span style={{ color: '#fde68a', flex: 1, marginLeft: '6px' }}>{score.name}</span>
-                    <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{score.score.toLocaleString()}</span>
-                    <span style={{ color: '#78350f', marginLeft: '8px' }}>Wave {score.wave}</span>
+                    <span style={{ color: '#a7f3d0', flex: 1, marginLeft: '6px' }}>{score.name}</span>
+                    <span style={{ color: '#4dd0e1', fontWeight: 'bold' }}>{score.score.toLocaleString()}</span>
+                    <span style={{ color: '#2a8a8a', marginLeft: '8px' }}>Wave {score.wave}</span>
                   </div>
                 ))}
               </div>

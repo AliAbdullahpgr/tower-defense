@@ -9,7 +9,8 @@ export type TowerType =
 export type EnemyType =
   | 'goblin' | 'imp' | 'skeleton' | 'werewolf' | 'orc' | 'golem'
   | 'troll' | 'banshee' | 'darkKnight' | 'dragon'
-  | 'armored' | 'healer' | 'tunneler' | 'flyer' | 'splitterBoss';
+  | 'armored' | 'healer' | 'tunneler' | 'flyer' | 'splitterBoss' | 'bossDragon'
+  | 'firebug' | 'leafbug' | 'magmaCrab' | 'scorpion';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'victory' | 'defeat';
 export type ProjectileType = 'arrow' | 'fireball' | 'cannonball' | 'frost' | 'lightning' | 'poison' | 'bolt' | 'boulder' | 'tesla';
@@ -131,6 +132,8 @@ export interface Tower {
   attackAnimTimer: number;
   // Power spot bonus
   powerBonus: number;
+  // Visual structure variant (for archer tower: 1-7)
+  spriteVariant?: number;
 }
 
 export interface Projectile {

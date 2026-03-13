@@ -104,20 +104,24 @@ export default function GameCanvas({ engine, state }: GameCanvasProps) {
   const cursor = state.selectedTowerType ? 'crosshair' : 'pointer';
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={canvasWidth}
-      height={canvasHeight}
-      onClick={handleClick}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        cursor,
-        display: 'block',
-        width: '100%',
-        height: 'auto',
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      <canvas
+        ref={canvasRef}
+        width={canvasWidth}
+        height={canvasHeight}
+        onClick={handleClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          cursor,
+          display: 'block',
+          maxWidth: '100%',
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto',
+        }}
+      />
+    </div>
   );
 }
 

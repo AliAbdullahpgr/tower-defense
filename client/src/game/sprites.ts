@@ -202,7 +202,87 @@ const ENEMY_SPRITE_MAP: Partial<Record<EnemyType, EnemySpriteMapping>> = {
   dragon:        { folder: 'enemies/largeMob3', frameSize: 96, frameCount: 6, walkAction: 'Fly', hasAttack: true, hasSpecial: true, hasWalk2: false, hasDeath2: false },
   flyer:         { folder: 'enemies/largeMob3', frameSize: 96, frameCount: 6, walkAction: 'Fly', hasAttack: true, hasSpecial: true, hasWalk2: false, hasDeath2: false },
   splitterBoss:  { folder: 'enemies/largeMob3', frameSize: 96, frameCount: 6, walkAction: 'Fly', hasAttack: true, hasSpecial: true, hasWalk2: false, hasDeath2: false },
+
+  // Boss Dragon: AI-generated pixel art dragon boss with walk animation
+  bossDragon:    { folder: 'enemies/bossDragon', frameSize: 96, frameCount: 6, walkAction: 'Walk', hasAttack: false, hasSpecial: false, hasWalk2: false, hasDeath2: false },
 };
+
+// ============================================================
+// FOOZLE ENEMY SPRITE SYSTEM (grid spritesheets)
+// ============================================================
+// Foozle Spire Enemy Pack 2: 64x64 frames in a grid layout
+// Row 0 (y=0):   Walk animation
+// Row 1 (y=64):  Attack animation
+// Row 2 (y=128): Death animation
+// Rows 3-8: additional animations (unused)
+
+interface FoozleEnemyConfig {
+  path: string;
+  frameSize: number;      // 64
+  walkFrames: number;     // frames in walk row
+  attackFrames: number;   // frames in attack row
+  deathFrames: number;    // frames in death row
+}
+
+const FOOZLE_ENEMY_CONFIGS: Partial<Record<EnemyType, FoozleEnemyConfig>> = {
+  firebug:   { path: '/sprites/enemies/foozle/firebug.png',   frameSize: 64, walkFrames: 8, attackFrames: 8, deathFrames: 6 },
+  leafbug:   { path: '/sprites/enemies/foozle/leafbug.png',   frameSize: 64, walkFrames: 8, attackFrames: 8, deathFrames: 6 },
+  magmaCrab: { path: '/sprites/enemies/foozle/magmacrab.png', frameSize: 64, walkFrames: 8, attackFrames: 8, deathFrames: 6 },
+  scorpion:  { path: '/sprites/enemies/foozle/scorpion.png',  frameSize: 64, walkFrames: 8, attackFrames: 8, deathFrames: 6 },
+};
+
+/**
+ * Draw a Foozle-style enemy sprite from a grid spritesheet.
+ * Returns true if drawn, false if sprite not yet loaded.
+ */
+export function drawFoozleEnemySprite(
+  ctx: CanvasRenderingContext2D,
+  enemyType: EnemyType,
+  x: number, y: number,
+  size: number,
+  walkCycle: number,
+  dying: boolean,
+  facingLeft: boolean
+): boolean {
+  const config = FOOZLE_ENEMY_CONFIGS[enemyType];
+  if (!config) return false;
+
+  const img = loadImage(config.path);
+  if (!img) return false;
+
+  const { frameSize } = config;
+  let row: number;
+  let frameCount: number;
+  if (dying) {
+    row = 2;
+    frameCount = config.deathFrames;
+  } else {
+    row = 0;
+    frameCount = config.walkFrames;
+  }
+
+  const frameIndex = dying
+    ? Math.min(Math.floor(walkCycle * frameCount), frameCount - 1)
+    : Math.floor(walkCycle * frameCount) % frameCount;
+
+  const sx = frameIndex * frameSize;
+  const sy = row * frameSize;
+
+  // Scale to match game enemy size
+  const scale = (size * 2.4) / frameSize;
+  const dw = frameSize * scale;
+  const dh = frameSize * scale;
+
+  ctx.save();
+  if (!facingLeft) {
+    ctx.scale(-1, 1);
+    ctx.translate(-x * 2, 0);
+  }
+  ctx.drawImage(img, sx, sy, frameSize, frameSize, x - dw / 2, y - dh / 2, dw, dh);
+  ctx.restore();
+
+  return true;
+}
 
 function getEnemySpriteSheet(
   enemyType: EnemyType,
@@ -253,8 +333,9 @@ export function drawEnemySprite(
 
   ctx.save();
 
-  // Handle facing direction — sprite sheets face right by default
-  if (facingLeft) {
+  // Handle facing direction — sprites face LEFT by default (towards entry point)
+  // When enemy walks RIGHT (facingLeft=false), flip to match movement direction
+  if (!facingLeft) {
     ctx.scale(-1, 1);
     ctx.translate(-x * 2, 0);
   }
@@ -299,12 +380,14 @@ export function drawArcherTowerSprite(
   x: number, y: number,
   level: number,
   animTimer: number,
-  cellSize: number
+  cellSize: number,
+  spriteVariantOverride?: number
 ): boolean {
   // Map game levels (1-3) to sprite variants (1-7):
-  // Level 1 = variant 1-2, Level 2 = variant 3-4, Level 3 = variant 5-7
-  const variantMap: Record<number, number> = { 1: 2, 2: 4, 3: 6 };
-  const variant = variantMap[level] || 2;
+  // Each level uses a more elaborate tower sprite
+  // Level 1 = variant 1 (basic), Level 2 = variant 3 (upgraded), Level 3 = variant 5 (max)
+  const variantMap: Record<number, number> = { 1: 1, 2: 3, 3: 5 };
+  const variant = spriteVariantOverride ?? variantMap[level] ?? 1;
   const config = TOWER_IDLE_CONFIGS[variant];
   if (!config) return false;
 
@@ -353,6 +436,189 @@ export function drawArcherTowerPreview(
   const dh = config.frameHeight * scale;
 
   return drawSpriteFrame(ctx, sheet, 0, x - dw / 2, y - dh / 2, dw, dh);
+}
+
+/**
+ * Draw a specific archer tower variant preview (1-7) for structure selection UI.
+ * Draws centered in a square of given size.
+ */
+export function drawArcherVariantPreview(
+  ctx: CanvasRenderingContext2D,
+  variant: number,
+  canvasSize: number
+): boolean {
+  const config = TOWER_IDLE_CONFIGS[variant];
+  if (!config) return false;
+
+  const sheet: SpriteSheetConfig = {
+    path: config.idlePath,
+    frameWidth: config.frameWidth,
+    frameHeight: config.frameHeight,
+    frameCount: config.idleFrameCount,
+  };
+
+  const scale = (canvasSize * 0.9) / config.frameHeight;
+  const dw = config.frameWidth * scale;
+  const dh = config.frameHeight * scale;
+  const cx = canvasSize / 2;
+  const cy = canvasSize / 2;
+
+  return drawSpriteFrame(ctx, sheet, 0, cx - dw / 2, cy - dh / 2, dw, dh);
+}
+
+/** Get the count of available archer tower variants */
+export const ARCHER_VARIANT_COUNT = Object.keys(TOWER_IDLE_CONFIGS).length;
+
+// ============================================================
+// FOOZLE TOWER SPRITES (Tower 03 & Tower 04)
+// ============================================================
+// Tower 03: base 192x128 (static), weapon 768x96 (8 frames of 96x96), projectile 60x10 (static)
+// Tower 04: base 192x128 (static), weapon 2176x128 (17 frames of 128x128), projectile varies
+
+interface FoozleTowerConfig {
+  basePath: string;
+  weaponPath: string;
+  projectilePath: string;
+  impactPath: string;
+  weaponFrameWidth: number;
+  weaponFrameHeight: number;
+  weaponFrameCount: number;
+}
+
+const FOOZLE_TOWER_CONFIGS: Record<'tower03' | 'tower04', Record<1 | 2 | 3, FoozleTowerConfig>> = {
+  tower03: {
+    1: { basePath: '/sprites/towers/tower03/base.png', weaponPath: '/sprites/towers/tower03/weapon1.png', projectilePath: '/sprites/towers/tower03/projectile1.png', impactPath: '/sprites/towers/tower03/impact1.png', weaponFrameWidth: 96, weaponFrameHeight: 96, weaponFrameCount: 8 },
+    2: { basePath: '/sprites/towers/tower03/base.png', weaponPath: '/sprites/towers/tower03/weapon2.png', projectilePath: '/sprites/towers/tower03/projectile2.png', impactPath: '/sprites/towers/tower03/impact2.png', weaponFrameWidth: 96, weaponFrameHeight: 96, weaponFrameCount: 8 },
+    3: { basePath: '/sprites/towers/tower03/base.png', weaponPath: '/sprites/towers/tower03/weapon3.png', projectilePath: '/sprites/towers/tower03/projectile3.png', impactPath: '/sprites/towers/tower03/impact3.png', weaponFrameWidth: 96, weaponFrameHeight: 96, weaponFrameCount: 8 },
+  },
+  tower04: {
+    1: { basePath: '/sprites/towers/tower04/base.png', weaponPath: '/sprites/towers/tower04/weapon1.png', projectilePath: '/sprites/towers/tower04/projectile1.png', impactPath: '/sprites/towers/tower04/impact1.png', weaponFrameWidth: 128, weaponFrameHeight: 128, weaponFrameCount: 17 },
+    2: { basePath: '/sprites/towers/tower04/base.png', weaponPath: '/sprites/towers/tower04/weapon2.png', projectilePath: '/sprites/towers/tower04/projectile2.png', impactPath: '/sprites/towers/tower04/impact2.png', weaponFrameWidth: 128, weaponFrameHeight: 128, weaponFrameCount: 17 },
+    3: { basePath: '/sprites/towers/tower04/base.png', weaponPath: '/sprites/towers/tower04/weapon3.png', projectilePath: '/sprites/towers/tower04/projectile3.png', impactPath: '/sprites/towers/tower04/impact3.png', weaponFrameWidth: 128, weaponFrameHeight: 128, weaponFrameCount: 17 },
+  },
+};
+
+export function drawFoozleTowerSprite(
+  ctx: CanvasRenderingContext2D,
+  towerKey: 'tower03' | 'tower04',
+  level: number,
+  x: number, y: number,
+  cellSize: number,
+  animTimer: number
+): boolean {
+  const lvl = (Math.max(1, Math.min(3, level))) as 1 | 2 | 3;
+  const config = FOOZLE_TOWER_CONFIGS[towerKey][lvl];
+  if (!config) return false;
+
+  const baseImg = loadImage(config.basePath);
+  if (!baseImg) return false;
+
+  // Draw base (192x128 -> scale to fit cell)
+  const baseScale = (cellSize * 1.1) / 128;
+  const baseDw = 192 * baseScale;
+  const baseDh = 128 * baseScale;
+  ctx.drawImage(baseImg, x - baseDw / 2, y - baseDh + cellSize * 0.5, baseDw, baseDh);
+
+  // Draw animated weapon on top
+  const weaponImg = loadImage(config.weaponPath);
+  if (weaponImg) {
+    const fps = 8;
+    const frameIndex = Math.floor((animTimer * fps) % config.weaponFrameCount);
+    const sx = frameIndex * config.weaponFrameWidth;
+    const wScale = (cellSize * 0.9) / config.weaponFrameHeight;
+    const wDw = config.weaponFrameWidth * wScale;
+    const wDh = config.weaponFrameHeight * wScale;
+    ctx.drawImage(weaponImg, sx, 0, config.weaponFrameWidth, config.weaponFrameHeight,
+      x - wDw / 2, y - wDh - baseDh * 0.3 + cellSize * 0.5, wDw, wDh);
+  }
+
+  return true;
+}
+
+export function getFoozleTowerProjectileSprite(towerKey: 'tower03' | 'tower04', level: number): HTMLImageElement | null {
+  const lvl = (Math.max(1, Math.min(3, level))) as 1 | 2 | 3;
+  const config = FOOZLE_TOWER_CONFIGS[towerKey]?.[lvl];
+  if (!config) return null;
+  return loadImage(config.projectilePath);
+}
+
+export function drawFoozleTowerImpact(
+  ctx: CanvasRenderingContext2D,
+  towerKey: 'tower03' | 'tower04',
+  level: number,
+  x: number, y: number,
+  animTimer: number,
+  size: number
+): boolean {
+  const lvl = (Math.max(1, Math.min(3, level))) as 1 | 2 | 3;
+  const config = FOOZLE_TOWER_CONFIGS[towerKey]?.[lvl];
+  if (!config) return false;
+
+  const img = loadImage(config.impactPath);
+  if (!img) return false;
+
+  // Impact sheets: Tower03 = 384x64 (6 frames of 64x64), Tower04 = 576x64 (9 frames of 64x64)
+  const frameH = 64;
+  const frameW = towerKey === 'tower03' ? 64 : 64;
+  const frameCount = towerKey === 'tower03' ? 6 : 9;
+  const frameIndex = Math.min(Math.floor(animTimer * 12) % frameCount, frameCount - 1);
+  const sx = frameIndex * frameW;
+  const scale = size / frameH;
+  const dw = frameW * scale;
+  const dh = frameH * scale;
+  ctx.drawImage(img, sx, 0, frameW, frameH, x - dw / 2, y - dh / 2, dw, dh);
+  return true;
+}
+
+// ============================================================
+// CHARACTER SPRITES (Heroes & Orcs — static images)
+// ============================================================
+
+export function getCharacterSprite(name: 'knight_hero' | 'mage_hero' | 'orc_brute' | 'orc_raider'): HTMLImageElement | null {
+  return loadImage(`/sprites/characters/${name}.png`);
+}
+
+// ============================================================
+// MAGIC CRYSTAL TOWER SPRITE
+// ============================================================
+
+export function getMagicCrystalTowerSprite(): HTMLImageElement | null {
+  return loadImage('/sprites/towers/magic_crystal_tower.png');
+}
+
+export function drawMagicCrystalTowerSprite(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  cellSize: number
+): boolean {
+  const img = getMagicCrystalTowerSprite();
+  if (!img) return false;
+  // 232x265 — scale to fit cell height
+  const scale = (cellSize * 1.3) / 265;
+  const dw = 232 * scale;
+  const dh = 265 * scale;
+  ctx.drawImage(img, x - dw / 2, y - dh + cellSize * 0.4, dw, dh);
+  return true;
+}
+
+// ============================================================
+// UI SPRITES (icons, buttons, banners)
+// ============================================================
+
+export type UIIconName = 'icon_arrow_up' | 'icon_coin' | 'icon_heart' | 'icon_plus' | 'icon_settings' | 'icon_skull' | 'icon_undo' | 'gold_pile' | 'button_pause' | 'button_play' | 'banner_wave';
+
+export function getUISprite(name: UIIconName): HTMLImageElement | null {
+  return loadImage(`/sprites/ui/${name}.png`);
+}
+
+// ============================================================
+// PROP SPRITES (from Fantasy TD Starter Pack)
+// ============================================================
+
+export type PropName = 'pine_tree' | 'bush_round' | 'rock_cluster' | 'rock_bush_cluster' | 'wood_bridge' | 'fence_segment' | 'wooden_signpost' | 'grass_tile_a' | 'grass_tile_b';
+
+export function getPropSprite(name: PropName): HTMLImageElement | null {
+  return loadImage(`/sprites/props/${name}.png`);
 }
 
 // ============================================================
@@ -588,6 +854,41 @@ export function preloadMapSprites(mapId: MapId): void {
   for (let i = 1; i <= 3; i++) {
     loadImage(`/sprites/powers/barrel/${i}.png`);
     loadImage(`/sprites/powers/barrel/Boom${i}.png`);
+  }
+
+  // Foozle enemy sprites
+  loadImage('/sprites/enemies/foozle/firebug.png');
+  loadImage('/sprites/enemies/foozle/leafbug.png');
+  loadImage('/sprites/enemies/foozle/magmacrab.png');
+  loadImage('/sprites/enemies/foozle/scorpion.png');
+
+  // Foozle tower sprites
+  for (const tower of ['tower03', 'tower04'] as const) {
+    loadImage(`/sprites/towers/${tower}/base.png`);
+    for (let lvl = 1; lvl <= 3; lvl++) {
+      loadImage(`/sprites/towers/${tower}/weapon${lvl}.png`);
+      loadImage(`/sprites/towers/${tower}/projectile${lvl}.png`);
+      loadImage(`/sprites/towers/${tower}/impact${lvl}.png`);
+    }
+  }
+
+  // Character sprites
+  loadImage('/sprites/characters/knight_hero.png');
+  loadImage('/sprites/characters/mage_hero.png');
+  loadImage('/sprites/characters/orc_brute.png');
+  loadImage('/sprites/characters/orc_raider.png');
+
+  // Magic crystal tower
+  loadImage('/sprites/towers/magic_crystal_tower.png');
+
+  // UI sprites
+  for (const name of ['icon_arrow_up', 'icon_coin', 'icon_heart', 'icon_plus', 'icon_settings', 'icon_skull', 'icon_undo', 'gold_pile', 'button_pause', 'button_play', 'banner_wave']) {
+    loadImage(`/sprites/ui/${name}.png`);
+  }
+
+  // Prop sprites
+  for (const name of ['pine_tree', 'bush_round', 'rock_cluster', 'rock_bush_cluster', 'wood_bridge', 'fence_segment', 'wooden_signpost', 'grass_tile_a', 'grass_tile_b']) {
+    loadImage(`/sprites/props/${name}.png`);
   }
 }
 

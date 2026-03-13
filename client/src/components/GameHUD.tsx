@@ -3,6 +3,7 @@
 // Design: Painterly Storybook Fantasy — warm wood/gold aesthetic
 // ============================================================
 
+import { useEffect, useRef } from 'react';
 import type { GameEngineState } from '../game/engine';
 import type { GameEngine } from '../game/engine';
 import { WAVE_CONFIGS, ENEMY_DEFINITIONS } from '../game/constants';
@@ -29,8 +30,8 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '6px 12px',
-        background: 'linear-gradient(90deg, #1c0a02, #3d2010, #5a3010, #3d2010, #1c0a02)',
-        borderBottom: '2px solid #8B6914',
+        background: 'linear-gradient(90deg, #0a1a1a, #1a3a3a, #2a4a4a, #1a3a3a, #0a1a1a)',
+        borderBottom: '2px solid #3a8a8a',
         boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
         flexShrink: 0,
         minHeight: '52px',
@@ -39,35 +40,34 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
     >
       {/* Left: Resources */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <HudStat
-          icon="💰"
+        <HudStatWithIcon
           label="Gold"
           value={stats.gold}
-          color="#fbbf24"
+          color="#4dd0e1"
+          iconSrc="/sprites/ui/icon_coin.png"
           sub={interestGold > 0 ? `+${interestGold}/wave` : undefined}
-          subColor="#a16207"
+          subColor="#2a8a8a"
         />
         <Divider />
-        <HudStat
-          icon="❤️"
+        <HudStatWithIcon
           label="Lives"
           value={stats.lives}
-          color={stats.lives <= 5 ? '#ef4444' : '#f87171'}
+          color={stats.lives <= 5 ? '#f87171' : '#86efac'}
+          iconSrc="/sprites/ui/icon_heart.png"
           pulse={stats.lives <= 3}
         />
         <Divider />
         <HudStat
-          icon="⭐"
           label="Score"
           value={stats.score}
-          color="#fde68a"
+          color="#a7f3d0"
         />
         <Divider />
-        <HudStat
-          icon="🏆"
+        <HudStatWithIcon
           label="Killed"
           value={stats.enemiesKilled}
-          color="#d97706"
+          color="#67e8f9"
+          iconSrc="/sprites/ui/icon_skull.png"
         />
       </div>
 
@@ -75,7 +75,7 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
         <div
           style={{
-            color: '#fde68a',
+            color: '#a7f3d0',
             fontWeight: 'bold',
             fontSize: '15px',
             letterSpacing: '1px',
@@ -86,14 +86,14 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
           {stats.wave === 0
             ? 'Prepare Your Defenses'
             : waveInProgress
-              ? `⚔ Wave ${stats.wave}${endlessMode ? '' : ` / ${stats.totalWaves}`}`
+              ? `Wave ${stats.wave}${endlessMode ? '' : ` / ${stats.totalWaves}`}`
               : isLastWave
-                ? '✦ All Waves Defeated! ✦'
+                ? 'All Waves Defeated!'
                 : `Wave ${stats.wave} Complete!`}
         </div>
 
         {!waveInProgress && !isLastWave && (
-          <div style={{ color: '#d97706', fontSize: '10px', marginTop: '2px' }}>
+          <div style={{ color: '#4dd0e1', fontSize: '10px', marginTop: '2px' }}>
             {countdownSec > 0 ? `Next wave in ${countdownSec}s` : 'Ready!'}
           </div>
         )}
@@ -109,12 +109,12 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
                   borderRadius: '3px',
                   background:
                     i < stats.wave - 1
-                      ? '#d97706'
+                      ? '#2a8a8a'
                       : i === stats.wave - 1
-                        ? '#fbbf24'
-                        : 'rgba(120,53,15,0.4)',
+                        ? '#4dd0e1'
+                        : 'rgba(42,138,138,0.3)',
                   transition: 'background 0.3s',
-                  boxShadow: i === stats.wave - 1 ? '0 0 4px #fbbf24' : 'none',
+                  boxShadow: i === stats.wave - 1 ? '0 0 4px #4dd0e1' : 'none',
                 }}
               />
             ))}
@@ -125,14 +125,14 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
           <div
             style={{
               fontSize: '9px',
-              color: '#a78bfa',
+              color: '#c4b5fd',
               marginTop: '2px',
               background: 'rgba(109,40,217,0.3)',
               borderRadius: '3px',
               padding: '1px 6px',
             }}
           >
-            ∞ ENDLESS MODE
+            {'ENDLESS MODE'}
           </div>
         )}
 
@@ -150,7 +150,7 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
               fontSize: '9px',
             }}
           >
-            <span style={{ color: '#78350f', fontFamily: "'Philosopher', serif" }}>Next:</span>
+            <span style={{ color: '#4a8a8a', fontFamily: "'Philosopher', serif" }}>Next:</span>
             {state.nextWavePreview.map((group, i) => {
               const enemyDef = ENEMY_DEFINITIONS[group.type];
               return (
@@ -158,11 +158,11 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
                   key={i}
                   title={enemyDef?.name || group.type}
                   style={{
-                    color: enemyDef?.color || '#d97706',
+                    color: enemyDef?.color || '#67e8f9',
                     fontWeight: 'bold',
                   }}
                 >
-                  {enemyDef?.emoji || '?'} ×{group.count}
+                  {enemyDef?.name || group.type} x{group.count}
                 </span>
               );
             })}
@@ -183,14 +183,14 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
                 fontSize: '10px',
                 fontWeight: 'bold',
                 borderRadius: '4px',
-                border: (speedMultiplier || 1) === spd ? '1px solid #FFD700' : '1px solid rgba(120,53,15,0.5)',
-                background: (speedMultiplier || 1) === spd ? 'rgba(120,80,0,0.6)' : 'rgba(45,26,8,0.6)',
-                color: (speedMultiplier || 1) === spd ? '#fbbf24' : '#78350f',
+                border: (speedMultiplier || 1) === spd ? '1px solid #4dd0e1' : '1px solid rgba(74,138,138,0.5)',
+                background: (speedMultiplier || 1) === spd ? 'rgba(0,100,100,0.6)' : 'rgba(10,40,40,0.6)',
+                color: (speedMultiplier || 1) === spd ? '#4dd0e1' : '#2a6a6a',
                 cursor: 'pointer',
                 transition: 'all 0.15s',
               }}
             >
-              {spd}×
+              {spd}x
             </button>
           ))}
         </div>
@@ -206,14 +206,14 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
             fontSize: '9px',
             fontWeight: 'bold',
             borderRadius: '4px',
-            border: endlessMode ? '1px solid #a78bfa' : '1px solid rgba(120,53,15,0.5)',
-            background: endlessMode ? 'rgba(109,40,217,0.4)' : 'rgba(45,26,8,0.6)',
-            color: endlessMode ? '#a78bfa' : '#78350f',
+            border: endlessMode ? '1px solid #a78bfa' : '1px solid rgba(74,138,138,0.5)',
+            background: endlessMode ? 'rgba(109,40,217,0.4)' : 'rgba(10,40,40,0.6)',
+            color: endlessMode ? '#a78bfa' : '#2a6a6a',
             cursor: 'pointer',
             transition: 'all 0.15s',
           }}
         >
-          ∞
+          Endless
         </button>
 
         {!waveInProgress && !isLastWave && (
@@ -221,19 +221,19 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
             onClick={onNextWave}
             style={{
               padding: '5px 12px',
-              background: 'linear-gradient(90deg, #166534, #15803d)',
-              color: '#86efac',
+              background: 'linear-gradient(90deg, #065f46, #047857)',
+              color: '#6ee7b7',
               fontSize: '11px',
               fontWeight: 'bold',
               borderRadius: '5px',
-              border: '1px solid #22c55e',
+              border: '1px solid #10b981',
               cursor: 'pointer',
               transition: 'all 0.15s',
-              boxShadow: '0 0 8px rgba(34,197,94,0.3)',
+              boxShadow: '0 0 8px rgba(16,185,129,0.3)',
               fontFamily: "'Philosopher', serif",
             }}
           >
-            ▶ Send Wave
+            Send Wave
           </button>
         )}
 
@@ -255,26 +255,35 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
               fontFamily: "'Philosopher', serif",
             }}
           >
-            ⚡ Rush Next Wave
+            Rush Next Wave
           </button>
         )}
 
         <button
           onClick={onPause}
+          title={gameState === 'paused' ? 'Resume' : 'Pause'}
           style={{
-            padding: '5px 10px',
-            background: 'rgba(45,26,8,0.8)',
-            color: '#fde68a',
+            padding: '3px',
+            background: 'rgba(10,40,40,0.8)',
+            color: '#a7f3d0',
             fontSize: '11px',
             fontWeight: 'bold',
             borderRadius: '5px',
-            border: '1px solid #78350f',
+            border: '1px solid #2a6a6a',
             cursor: 'pointer',
             transition: 'all 0.15s',
-            fontFamily: "'Philosopher', serif",
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '36px',
+            height: '32px',
           }}
         >
-          {gameState === 'paused' ? '▶ Resume' : '⏸ Pause'}
+          <SpriteIcon
+            src={gameState === 'paused' ? '/sprites/ui/button_play.png' : '/sprites/ui/button_pause.png'}
+            fallback={gameState === 'paused' ? '▶' : '⏸'}
+            size={22}
+          />
         </button>
 
         <button
@@ -282,18 +291,18 @@ export default function GameHUD({ state, engine, onPause, onNextWave, onSendNext
           title="Return to Main Menu"
           style={{
             padding: '5px 8px',
-            background: 'rgba(45,26,8,0.8)',
-            color: '#78350f',
+            background: 'rgba(10,40,40,0.8)',
+            color: '#4a8a8a',
             fontSize: '11px',
             fontWeight: 'bold',
             borderRadius: '5px',
-            border: '1px solid rgba(120,53,15,0.5)',
+            border: '1px solid rgba(74,138,138,0.5)',
             cursor: 'pointer',
             transition: 'all 0.15s',
             fontFamily: "'Philosopher', serif",
           }}
         >
-          ✕ Menu
+          Menu
         </button>
       </div>
     </div>
@@ -306,40 +315,58 @@ function Divider() {
       style={{
         width: '1px',
         height: '28px',
-        background: 'rgba(139,105,20,0.4)',
+        background: 'rgba(74,138,138,0.4)',
         flexShrink: 0,
       }}
     />
   );
 }
 
-function HudStat({
-  icon,
+/** Renders a UI sprite icon; falls back to text if image not loaded */
+function SpriteIcon({ src, fallback, size }: { src: string; fallback: string; size: number }) {
+  const imgRef = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    if (imgRef.current) {
+      imgRef.current.onerror = () => {
+        if (imgRef.current) imgRef.current.style.display = 'none';
+      };
+    }
+  }, [src]);
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size }}>
+      <img
+        ref={imgRef}
+        src={src}
+        width={size}
+        height={size}
+        style={{ objectFit: 'contain', imageRendering: 'pixelated' }}
+        alt=""
+      />
+      <span style={{ display: 'none', fontSize: Math.round(size * 0.7) + 'px' }}>{fallback}</span>
+    </span>
+  );
+}
+
+function HudStatWithIcon({
   label,
   value,
   color,
+  iconSrc,
   sub,
   subColor,
   pulse,
 }: {
-  icon: string;
   label: string;
   value: number;
   color: string;
+  iconSrc: string;
   sub?: string;
   subColor?: string;
   pulse?: boolean;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-      <span
-        style={{
-          fontSize: '16px',
-          animation: pulse ? 'pulse 1s infinite' : 'none',
-        }}
-      >
-        {icon}
-      </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', animation: pulse ? 'pulse 1s infinite' : 'none' }}>
+      <SpriteIcon src={iconSrc} fallback="" size={20} />
       <div>
         <div
           style={{
@@ -352,10 +379,50 @@ function HudStat({
         >
           {value.toLocaleString()}
         </div>
-        <div style={{ color: '#78350f', fontSize: '9px', lineHeight: 1, marginTop: '1px' }}>
+        <div style={{ color: '#4a8a8a', fontSize: '9px', lineHeight: 1, marginTop: '1px' }}>
           {label}
           {sub && (
-            <span style={{ color: subColor || '#a16207', marginLeft: '4px' }}>{sub}</span>
+            <span style={{ color: subColor || '#2a8a8a', marginLeft: '4px' }}>{sub}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HudStat({
+  label,
+  value,
+  color,
+  sub,
+  subColor,
+  pulse,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  sub?: string;
+  subColor?: string;
+  pulse?: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', animation: pulse ? 'pulse 1s infinite' : 'none' }}>
+      <div>
+        <div
+          style={{
+            fontWeight: 'bold',
+            fontSize: '14px',
+            lineHeight: 1,
+            color,
+            fontFamily: "'Philosopher', serif",
+          }}
+        >
+          {value.toLocaleString()}
+        </div>
+        <div style={{ color: '#4a8a8a', fontSize: '9px', lineHeight: 1, marginTop: '1px' }}>
+          {label}
+          {sub && (
+            <span style={{ color: subColor || '#2a8a8a', marginLeft: '4px' }}>{sub}</span>
           )}
         </div>
       </div>

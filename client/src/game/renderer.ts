@@ -11,8 +11,10 @@ import { CELL_SIZE, GRID_COLS, GRID_ROWS } from './constants';
 import {
   getRuinSprite, getRuinDrawSize, preloadMapSprites,
   getGrassTile, getPathTile,
-  drawEnemySprite,
+  drawEnemySprite, drawFoozleEnemySprite,
   drawArcherTowerSprite, drawArcherTowerPreview,
+  drawFoozleTowerSprite, drawMagicCrystalTowerSprite,
+  getCharacterSprite, getPropSprite,
   getTreeSprite, getRockSprite,
   getGrassDecorSprite, getFlowerSprite, getBushSprite,
   getPlacementSprite,
@@ -71,6 +73,7 @@ export function renderGame(ctx: CanvasRenderingContext2D, state: GameEngineState
 function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
   const { pathCells, powerSpots, waypoints } = state;
 
+  // First pass: draw all tiles
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const x = col * CELL_SIZE;
@@ -78,81 +81,113 @@ function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
       const key = `${col},${row}`;
 
       if (pathCells.has(key)) {
-        // Try sprite tile first, fallback to procedural
+        // Path cell with clear cobblestone look
         const pathTile = getPathTile(col, row);
         if (pathTile) {
           ctx.drawImage(pathTile, x, y, CELL_SIZE, CELL_SIZE);
         } else {
-          const grad = ctx.createLinearGradient(x, y, x, y + CELL_SIZE);
-          grad.addColorStop(0, '#C8A96E');
-          grad.addColorStop(1, '#B8935A');
+          // Procedural cobblestone path
+          const grad = ctx.createLinearGradient(x, y, x + CELL_SIZE, y + CELL_SIZE);
+          grad.addColorStop(0, '#9A8A6A');
+          grad.addColorStop(0.5, '#8A7A5A');
+          grad.addColorStop(1, '#7A6A4A');
           ctx.fillStyle = grad;
           ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-          ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-          ctx.lineWidth = 1;
-          for (let i = 0; i < 4; i++) {
-            ctx.beginPath();
-            ctx.moveTo(x + i * 16, y);
-            ctx.lineTo(x + i * 16, y + CELL_SIZE);
-            ctx.stroke();
+          // Cobblestone pattern
+          ctx.fillStyle = 'rgba(60,50,40,0.3)';
+          for (let cy = 0; cy < 3; cy++) {
+            for (let cx = 0; cx < 3; cx++) {
+              const ox = (cx * 20) + (cy % 2) * 10;
+              const oy = cy * 20;
+              ctx.beginPath();
+              ctx.roundRect(x + ox + 2, y + oy + 2, 16, 16, 3);
+              ctx.fill();
+            }
           }
         }
       } else if (powerSpots && powerSpots.has(key)) {
-        // Power spot: draw grass tile underneath, then overlay glow
+        // Power spot with grass underneath
         const grassTile = getGrassTile(col, row);
         if (grassTile) {
           ctx.drawImage(grassTile, x, y, CELL_SIZE, CELL_SIZE);
         } else {
           const grad = ctx.createRadialGradient(x + CELL_SIZE/2, y + CELL_SIZE/2, 5, x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE * 0.7);
-          grad.addColorStop(0, '#5A7A3A');
-          grad.addColorStop(0.5, '#4A6A2A');
-          grad.addColorStop(1, '#3A5A1A');
+          grad.addColorStop(0, '#4A7A3A');
+          grad.addColorStop(0.5, '#3A6A2A');
+          grad.addColorStop(1, '#2A5A1A');
           ctx.fillStyle = grad;
           ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         }
-        // Golden power aura overlay
+        // Cyan power aura overlay
         ctx.save();
-        ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 600) * 0.15;
+        ctx.globalAlpha = 0.4 + Math.sin(Date.now() / 500) * 0.2;
         const starGrad = ctx.createRadialGradient(x + CELL_SIZE/2, y + CELL_SIZE/2, 0, x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE * 0.5);
-        starGrad.addColorStop(0, '#FFD700');
+        starGrad.addColorStop(0, '#4DD0E1');
         starGrad.addColorStop(1, 'transparent');
         ctx.fillStyle = starGrad;
         ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         ctx.restore();
-        // Tower placement indicator sprite
+        // Tower placement indicator
         const placementSprite = getPlacementSprite(1);
         if (placementSprite) {
           ctx.save();
-          ctx.globalAlpha = 0.7;
+          ctx.globalAlpha = 0.8;
           ctx.drawImage(placementSprite, x + 4, y + 4, CELL_SIZE - 8, CELL_SIZE - 8);
           ctx.restore();
-        } else {
-          ctx.fillStyle = 'rgba(255,215,0,0.6)';
-          ctx.font = '16px serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('\u2605', x + CELL_SIZE/2, y + CELL_SIZE/2 + 6);
         }
       } else {
-        // Grass cell: try sprite tile, fallback to procedural
+        // Grass cell — always draw solid green base first for consistent color
+        const shade = ((col + row) % 2 === 0) ? '#3A7A28' : '#2E6B20';
+        ctx.fillStyle = shade;
+        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
         const grassTile = getGrassTile(col, row);
         if (grassTile) {
+          // Draw sprite with green tint overlay to keep consistent green look
           ctx.drawImage(grassTile, x, y, CELL_SIZE, CELL_SIZE);
-        } else {
-          const shade = ((col + row) % 2 === 0) ? '#4A7A2A' : '#3A6A1A';
-          ctx.fillStyle = shade;
+          ctx.save();
+          ctx.globalAlpha = 0.25;
+          ctx.fillStyle = '#2E7D20';
+          ctx.globalCompositeOperation = 'multiply';
           ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-          ctx.globalAlpha = 0.3;
-          ctx.fillStyle = '#5A8A3A';
+          ctx.restore();
+        } else {
+          // Procedural grass tufts
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = '#5AAA3A';
           ctx.fillRect(x + 2, y + 2, 8, 3);
           ctx.fillRect(x + 20, y + 35, 6, 3);
           ctx.fillRect(x + 45, y + 15, 7, 3);
           ctx.globalAlpha = 1;
         }
       }
+    }
+  }
 
-      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+  // Second pass: draw path borders for clarity
+  ctx.strokeStyle = '#5A4A3A';
+  ctx.lineWidth = 2;
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const key = `${col},${row}`;
+      if (!pathCells.has(key)) continue;
+      const x = col * CELL_SIZE;
+      const y = row * CELL_SIZE;
+      // Draw border only on edges adjacent to non-path cells
+      const drawBorder = (dx: number, dy: number) => {
+        const nkey = `${col + dx},${row + dy}`;
+        if (!pathCells.has(nkey)) {
+          ctx.beginPath();
+          if (dx === -1) { ctx.moveTo(x, y); ctx.lineTo(x, y + CELL_SIZE); }
+          if (dx === 1) { ctx.moveTo(x + CELL_SIZE, y); ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE); }
+          if (dy === -1) { ctx.moveTo(x, y); ctx.lineTo(x + CELL_SIZE, y); }
+          if (dy === 1) { ctx.moveTo(x, y + CELL_SIZE); ctx.lineTo(x + CELL_SIZE, y + CELL_SIZE); }
+          ctx.stroke();
+        }
+      };
+      drawBorder(-1, 0);
+      drawBorder(1, 0);
+      drawBorder(0, -1);
+      drawBorder(0, 1);
     }
   }
 
@@ -172,53 +207,36 @@ function drawMap(ctx: CanvasRenderingContext2D, state: GameEngineState) {
 //       'flag'=animated flag, 'campfire'=animated campfire
 // variant: depends on type (ruin 1-5, tree 1-3, rock 1-5, etc.)
 const DECORATION_PLACEMENTS: Array<[number, number, string, number]> = [
-  // Large ruins (variant 1) — impressive corner pieces
+  // 2 ruins
   [1, 1, 'ruin', 1],
-  [15, 11, 'ruin', 1],
-  // Medium ruins (variant 2) — wall segments, fences
-  [2, 8, 'ruin', 2],
-  [16, 1, 'ruin', 2],
-  [12, 11, 'ruin', 2],
-  // Small-medium ruins (variant 3) — broken pillars
-  [5, 1, 'ruin', 3],
-  [4, 10, 'ruin', 3],
   [14, 6, 'ruin', 3],
-  [9, 0, 'ruin', 3],
-  // Small rubble (variant 4) — scattered debris
-  [10, 1, 'ruin', 4],
-  [0, 10, 'ruin', 4],
-  [17, 3, 'ruin', 4],
-  [3, 0, 'ruin', 4],
-  // Trees — now using sprite assets
-  [8, 3, 'tree', 1],
-  [16, 10, 'tree', 2],
+  // 6 trees — mix of types, spread around the map edges
   [0, 0, 'tree', 3],
-  [17, 11, 'tree', 1],
-  [6, 0, 'tree', 2],
-  [11, 11, 'tree', 3],
-  // Rocks — scattered around the map
+  [17, 0, 'pine_tree', 1],
+  [8, 3, 'tree', 2],
+  [0, 11, 'tree', 1],
+  [17, 11, 'pine_tree', 1],
+  [11, 0, 'tree', 3],
+  // 7 rocks — scattered near the path
   [13, 2, 'rock', 1],
-  [7, 10, 'rock', 2],
-  [1, 4, 'rock', 3],
+  [6, 7, 'rock_cluster', 1],
   [2, 11, 'rock', 4],
-  [6, 7, 'rock', 5],
-  // Bushes
-  [14, 0, 'bush', 1],
-  [3, 11, 'bush', 3],
-  [17, 5, 'bush', 5],
-  // Flowers
-  [10, 0, 'flower', 2],
-  [0, 6, 'flower', 5],
-  [15, 9, 'flower', 8],
-  // Grass tufts
-  [12, 1, 'grass_decor', 1],
-  [5, 11, 'grass_decor', 3],
-  [16, 7, 'grass_decor', 5],
-  // Animated: flags near ruins
-  [1, 2, 'flag', 1],
-  [15, 10, 'flag', 3],
-  // Animated: campfire
-  [9, 11, 'campfire', 1],
+  [16, 4, 'rock', 2],
+  [4, 0, 'rock_cluster', 1],
+  [9, 11, 'rock', 3],
+  [0, 7, 'rock', 5],
+  // 4 bushes
+  [5, 11, 'bush', 2],
+  [14, 0, 'bush_round', 1],
+  [17, 7, 'bush', 4],
+  [3, 4, 'bush_round', 1],
+  // 3 flowers/grass
+  [10, 1, 'flower', 3],
+  [7, 10, 'flower', 7],
+  [15, 9, 'grass_decor', 2],
+  // 2 campfires
+  [12, 11, 'campfire', 1],
+  [1, 10, 'campfire', 2],
 ];
 
 function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string>, powerSpots: Set<string>, mapId: MapId) {
@@ -306,6 +324,61 @@ function drawMapDecorations(ctx: CanvasRenderingContext2D, pathCells: Set<string
       const cw = CELL_SIZE * 0.7;
       const ch = CELL_SIZE * 0.7;
       drawSpriteFrame(ctx, config, frameIndex, x - cw / 2, cellY + CELL_SIZE - ch, cw, ch);
+    } else if (type === 'pine_tree') {
+      const sprite = getPropSprite('pine_tree');
+      if (sprite) {
+        // 142x159 — scale to ~1.4 cells wide
+        const pw = CELL_SIZE * 1.4;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const ph = pw * aspect;
+        ctx.drawImage(sprite, x - pw / 2, cellY + CELL_SIZE - ph, pw, ph);
+      } else {
+        drawTreeProcedural(ctx, x, y);
+      }
+    } else if (type === 'rock_cluster') {
+      const sprite = getPropSprite('rock_cluster');
+      if (sprite) {
+        const rw = CELL_SIZE * 1.1;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const rh = rw * aspect;
+        ctx.drawImage(sprite, x - rw / 2, cellY + CELL_SIZE - rh, rw, rh);
+      } else {
+        drawRockProcedural(ctx, x, y);
+      }
+    } else if (type === 'rock_bush_cluster') {
+      const sprite = getPropSprite('rock_bush_cluster');
+      if (sprite) {
+        const rw = CELL_SIZE * 1.2;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const rh = rw * aspect;
+        ctx.drawImage(sprite, x - rw / 2, cellY + CELL_SIZE - rh, rw, rh);
+      } else {
+        drawRockProcedural(ctx, x, y);
+      }
+    } else if (type === 'bush_round') {
+      const sprite = getPropSprite('bush_round');
+      if (sprite) {
+        const bw = CELL_SIZE * 0.9;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const bh = bw * aspect;
+        ctx.drawImage(sprite, x - bw / 2, cellY + CELL_SIZE - bh, bw, bh);
+      }
+    } else if (type === 'fence_segment') {
+      const sprite = getPropSprite('fence_segment');
+      if (sprite) {
+        const fw = CELL_SIZE * 1.1;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const fh = fw * aspect;
+        ctx.drawImage(sprite, x - fw / 2, cellY + CELL_SIZE - fh, fw, fh);
+      }
+    } else if (type === 'wooden_signpost') {
+      const sprite = getPropSprite('wooden_signpost');
+      if (sprite) {
+        const sw = CELL_SIZE * 0.85;
+        const aspect = sprite.naturalHeight / sprite.naturalWidth;
+        const sh = sw * aspect;
+        ctx.drawImage(sprite, x - sw / 2, cellY + CELL_SIZE - sh, sw, sh);
+      }
     }
   }
 }
@@ -342,8 +415,10 @@ function drawMushroom(ctx: CanvasRenderingContext2D, x: number, y: number) {
 
 function drawPathArrows(ctx: CanvasRenderingContext2D, waypoints: Array<[number, number]>) {
   ctx.save();
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = '#8B6914';
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#F5DEB3';
+  ctx.strokeStyle = '#8B7355';
+  ctx.lineWidth = 1.5;
   for (let i = 0; i < waypoints.length - 1; i++) {
     const [c1, r1] = waypoints[i];
     const [c2, r2] = waypoints[i + 1];
@@ -354,8 +429,10 @@ function drawPathArrows(ctx: CanvasRenderingContext2D, waypoints: Array<[number,
     ctx.translate(ax, ay);
     ctx.rotate(angle);
     ctx.beginPath();
-    ctx.moveTo(10, 0); ctx.lineTo(-8, -7); ctx.lineTo(-8, 7);
-    ctx.closePath(); ctx.fill();
+    ctx.moveTo(14, 0); ctx.lineTo(-10, -9); ctx.lineTo(-6, 0); ctx.lineTo(-10, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
   ctx.restore();
@@ -364,26 +441,40 @@ function drawPathArrows(ctx: CanvasRenderingContext2D, waypoints: Array<[number,
 function drawEntryMarker(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.save();
   ctx.fillStyle = '#4CAF50';
+  ctx.strokeStyle = '#2E7D32';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(x + CELL_SIZE / 2, y + CELL_SIZE / 2);
-  ctx.lineTo(x + CELL_SIZE / 2 - 16, y + CELL_SIZE / 2 - 12);
-  ctx.lineTo(x + CELL_SIZE / 2 - 16, y + CELL_SIZE / 2 + 12);
-  ctx.closePath(); ctx.fill();
+  ctx.moveTo(x + CELL_SIZE / 2 + 10, y + CELL_SIZE / 2);
+  ctx.lineTo(x + CELL_SIZE / 2 - 14, y + CELL_SIZE / 2 - 14);
+  ctx.lineTo(x + CELL_SIZE / 2 - 14, y + CELL_SIZE / 2 + 14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 12px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('IN', x + CELL_SIZE / 2 - 4, y + CELL_SIZE / 2);
   ctx.restore();
 }
 
 function drawExitMarker(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.save();
-  ctx.strokeStyle = '#EF5350';
+  ctx.fillStyle = '#D32F2F';
+  ctx.strokeStyle = '#B71C1C';
   ctx.lineWidth = 3;
-  ctx.strokeRect(x + 8, y + 8, CELL_SIZE - 16, CELL_SIZE - 16);
-  ctx.fillStyle = '#EF5350';
-  ctx.font = 'bold 14px serif';
+  ctx.fillRect(x + 6, y + 6, CELL_SIZE - 12, CELL_SIZE - 12);
+  ctx.strokeRect(x + 6, y + 6, CELL_SIZE - 12, CELL_SIZE - 12);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 11px serif';
   ctx.textAlign = 'center';
-  ctx.fillText('🏰', x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 6);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('EXIT', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
   ctx.restore();
 }
 
+// ============================================================
+// TOWER DRAWING
 // ============================================================
 // TOWER DRAWING
 // ============================================================
@@ -416,23 +507,39 @@ function drawTower(ctx: CanvasRenderingContext2D, tower: Tower, selected: boolea
     ctx.restore();
   }
 
+  const animTime = getAnimTime();
   switch (tower.type) {
     case 'archer': {
       // Try sprite first, fallback to procedural
-      const animTime = getAnimTime();
-      if (!drawArcherTowerSprite(ctx, x, y, tower.level, animTime, CELL_SIZE)) {
+      // Use spriteVariant if player picked a structure, otherwise use level default
+      if (!drawArcherTowerSprite(ctx, x, y, tower.level, animTime, CELL_SIZE, tower.spriteVariant)) {
         drawArcherTower(ctx, x, y, tower.level, anim);
       }
       break;
     }
-    case 'mage':        drawMageTower(ctx, x, y, tower.level, anim); break;
-    case 'cannon':      drawCannonTower(ctx, x, y, tower.level, anim); break;
+    case 'mage':
+      // Use magic crystal tower sprite, fall back to procedural
+      if (!drawMagicCrystalTowerSprite(ctx, x, y, CELL_SIZE)) {
+        drawMageTower(ctx, x, y, tower.level, anim);
+      }
+      break;
+    case 'cannon':
+      // Use Foozle Tower 03 sprite (cannon-style), fall back to procedural
+      if (!drawFoozleTowerSprite(ctx, 'tower03', tower.level, x, y, CELL_SIZE, animTime)) {
+        drawCannonTower(ctx, x, y, tower.level, anim);
+      }
+      break;
+    case 'ballista':
+      // Use Foozle Tower 04 sprite (long-range weapon), fall back to procedural
+      if (!drawFoozleTowerSprite(ctx, 'tower04', tower.level, x, y, CELL_SIZE, animTime)) {
+        drawBallistaTower(ctx, x, y, tower.level, anim);
+      }
+      break;
     case 'frost':       drawFrostTower(ctx, x, y, tower.level, anim); break;
     case 'lightning':   drawStormTower(ctx, x, y, tower.level, anim); break;
     case 'poison':      drawPoisonTower(ctx, x, y, tower.level, anim); break;
-    case 'ballista':    drawBallistaTower(ctx, x, y, tower.level, anim); break;
     case 'infantry':    drawInfantryBarracks(ctx, x, y, tower.level); break;
-    case 'hero':        drawHeroAltar(ctx, x, y, tower.level); break;
+    case 'hero':        drawHeroAltarWithSprite(ctx, x, y, tower.level, animTime); break;
     case 'beastmaster': drawBeastDen(ctx, x, y, tower.level); break;
     case 'necromancer': drawNecromancerCrypt(ctx, x, y, tower.level, anim); break;
     case 'catapult':    drawCatapult(ctx, x, y, tower.level, anim); break;
@@ -446,7 +553,7 @@ function drawTower(ctx: CanvasRenderingContext2D, tower: Tower, selected: boolea
     ctx.fillStyle = '#FFD700';
     ctx.font = 'bold 9px serif';
     ctx.textAlign = 'center';
-    ctx.fillText('★'.repeat(tower.level), x, y + 30);
+    ctx.fillText(`Lv${tower.level}`, x, y + 30);
   }
 
   ctx.restore();
@@ -658,6 +765,37 @@ function drawInfantryBarracks(ctx: CanvasRenderingContext2D, x: number, y: numbe
   }
 }
 
+function drawHeroAltarWithSprite(ctx: CanvasRenderingContext2D, x: number, y: number, level: number, animTime: number) {
+  // Try to draw knight_hero sprite as the hero altar visual
+  const heroImg = getCharacterSprite('knight_hero');
+  if (heroImg) {
+    // 188x205 — scale to fit cell
+    const scale = (CELL_SIZE * 1.2) / 205;
+    const dw = 188 * scale;
+    const dh = 205 * scale;
+    // Draw glowing altar base
+    const grad = ctx.createLinearGradient(x - 16, y + 8, x + 16, y + 20);
+    grad.addColorStop(0, '#F9A825');
+    grad.addColorStop(1, '#E65100');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - 18, y + 8, 36, 14);
+    // Draw hero sprite
+    ctx.drawImage(heroImg, x - dw / 2, y - dh + CELL_SIZE * 0.5, dw, dh);
+    // Glow effect when active
+    const pulse = 0.3 + Math.sin(animTime * Math.PI * 2) * 0.15;
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    const g = ctx.createRadialGradient(x, y, 5, x, y, 30);
+    g.addColorStop(0, '#FFD700');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  } else {
+    drawHeroAltar(ctx, x, y, level);
+  }
+}
+
 function drawHeroAltar(ctx: CanvasRenderingContext2D, x: number, y: number, _level: number) {
   const grad = ctx.createLinearGradient(x - 16, y - 8, x + 16, y + 16);
   grad.addColorStop(0, '#F9A825');
@@ -847,15 +985,20 @@ function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy) {
 
   // Try sprite-based drawing first
   const deathProgress = dying ? Math.max(0, 1 - (dyingTimer || 0) / 300) : 0;
-  const spriteDrawn = drawEnemySprite(
+  const animCycle = dying ? deathProgress : (walkCycle || 0);
+
+  // Try Foozle sprites first for new enemy types
+  const foozleDrawn = drawFoozleEnemySprite(ctx, enemy.type, x, y, size, animCycle, dying, facingLeft);
+
+  const spriteDrawn = foozleDrawn || drawEnemySprite(
     ctx, enemy.type, x, y, size,
-    dying ? deathProgress : (walkCycle || 0),
+    animCycle,
     dying, facingLeft
   );
 
   if (!spriteDrawn) {
-    // Fallback to procedural drawing
-    if (facingLeft) {
+    // Fallback to procedural drawing — same flip logic as sprites
+    if (!facingLeft) {
       ctx.scale(-1, 1);
       ctx.translate(-x * 2, 0);
     }
@@ -876,6 +1019,11 @@ function drawEnemy(ctx: CanvasRenderingContext2D, enemy: Enemy) {
       case 'tunneler':     drawTunneler(ctx, x, y, size, walkCycle || 0); break;
       case 'flyer':        drawFlyer(ctx, x, y, size, walkCycle || 0); break;
       case 'splitterBoss': drawSplitterBoss(ctx, x, y, size, walkCycle || 0); break;
+      // Foozle enemies — procedural fallback
+      case 'firebug':      drawFirebugFallback(ctx, x, y, size, walkCycle || 0); break;
+      case 'leafbug':      drawLeafbugFallback(ctx, x, y, size, walkCycle || 0); break;
+      case 'magmaCrab':    drawMagmaCrabFallback(ctx, x, y, size, walkCycle || 0); break;
+      case 'scorpion':     drawScorpionFallback(ctx, x, y, size, walkCycle || 0); break;
       default:             drawGenericEnemy(ctx, x, y, size, enemy.color); break;
     }
   }
@@ -1297,6 +1445,141 @@ function drawGenericEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, s
 }
 
 // ============================================================
+// FOOZLE ENEMY PROCEDURAL FALLBACKS
+// ============================================================
+
+function drawFirebugFallback(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, wc: number) {
+  const bob = bodyBob(wc);
+  // Fire-colored insect body
+  const grad = ctx.createRadialGradient(x, y - bob, size * 0.2, x, y - bob, size);
+  grad.addColorStop(0, '#FFCA28');
+  grad.addColorStop(0.5, '#FF7043');
+  grad.addColorStop(1, '#BF360C');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.ellipse(x, y - bob, size * 0.7, size * 0.9, 0, 0, Math.PI * 2); ctx.fill();
+  // Wings
+  const wingAlpha = 0.6 + Math.sin(wc * Math.PI * 8) * 0.3;
+  ctx.save();
+  ctx.globalAlpha = wingAlpha;
+  ctx.fillStyle = 'rgba(255,120,0,0.5)';
+  ctx.beginPath(); ctx.ellipse(x - size * 0.9, y - size * 0.4 - bob, size * 0.7, size * 0.3, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + size * 0.9, y - size * 0.4 - bob, size * 0.7, size * 0.3, 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // Antennae
+  ctx.strokeStyle = '#FF6D00'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x - 4, y - size - bob); ctx.lineTo(x - 8, y - size * 1.5 - bob); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 4, y - size - bob); ctx.lineTo(x + 8, y - size * 1.5 - bob); ctx.stroke();
+  // Eyes
+  ctx.fillStyle = '#FF1744';
+  ctx.beginPath(); ctx.arc(x - 4, y - size * 0.8 - bob, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 4, y - size * 0.8 - bob, 3, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawLeafbugFallback(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, wc: number) {
+  const bob = bodyBob(wc);
+  // Green leaf-like body
+  ctx.fillStyle = '#558B2F';
+  ctx.beginPath(); ctx.ellipse(x, y - bob, size * 0.65, size * 0.85, 0, 0, Math.PI * 2); ctx.fill();
+  // Leaf wings
+  const wingPhase = Math.sin(wc * Math.PI * 6) * 0.25;
+  ctx.save();
+  ctx.globalAlpha = 0.8;
+  ctx.fillStyle = '#7CB342';
+  ctx.save();
+  ctx.translate(x - size * 0.3, y - bob);
+  ctx.rotate(-0.5 + wingPhase);
+  ctx.beginPath(); ctx.ellipse(-size * 0.5, -size * 0.3, size * 0.8, size * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.translate(x + size * 0.3, y - bob);
+  ctx.rotate(0.5 - wingPhase);
+  ctx.beginPath(); ctx.ellipse(size * 0.5, -size * 0.3, size * 0.8, size * 0.25, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+  // Head
+  ctx.fillStyle = '#33691E';
+  ctx.beginPath(); ctx.arc(x, y - size * 0.85 - bob, size * 0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#FFE57F';
+  ctx.beginPath(); ctx.arc(x - 3, y - size * 0.9 - bob, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 3, y - size * 0.9 - bob, 2, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawMagmaCrabFallback(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, wc: number) {
+  const bob = bodyBob(wc) * 0.4;
+  // Legs
+  ctx.strokeStyle = '#5D4037'; ctx.lineWidth = 3;
+  for (let i = -2; i <= 2; i++) {
+    if (i === 0) continue;
+    const legX = x + i * size * 0.35;
+    const legY = y + size * 0.4 + legOffset(wc, i < 0 ? 'left' : 'right') * 0.5;
+    ctx.beginPath(); ctx.moveTo(legX, legY); ctx.lineTo(legX + i * size * 0.4, legY + size * 0.5); ctx.stroke();
+  }
+  // Carapace (rock-like)
+  const grad = ctx.createRadialGradient(x - size * 0.2, y - size * 0.2 - bob, size * 0.1, x, y - bob, size);
+  grad.addColorStop(0, '#FF5722');
+  grad.addColorStop(0.6, '#BF360C');
+  grad.addColorStop(1, '#4E2020');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.ellipse(x, y - bob, size * 1.1, size * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+  // Cracks (lava pattern)
+  ctx.strokeStyle = '#FF6D00'; ctx.lineWidth = 1.5;
+  ctx.save();
+  ctx.globalAlpha = 0.7 + Math.sin(Date.now() / 200) * 0.3;
+  ctx.beginPath(); ctx.moveTo(x - size * 0.5, y - size * 0.2 - bob); ctx.lineTo(x - size * 0.1, y - bob); ctx.lineTo(x + size * 0.4, y - size * 0.3 - bob); ctx.stroke();
+  ctx.restore();
+  // Claws
+  ctx.fillStyle = '#795548';
+  ctx.beginPath(); ctx.ellipse(x - size * 1.1, y - bob, size * 0.45, size * 0.3, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + size * 1.1, y - bob, size * 0.45, size * 0.3, 0.3, 0, Math.PI * 2); ctx.fill();
+  // Eyes (glowing)
+  ctx.save();
+  ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 150) * 0.2;
+  ctx.fillStyle = '#FFD740';
+  ctx.beginPath(); ctx.arc(x - size * 0.3, y - size * 0.4 - bob, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + size * 0.3, y - size * 0.4 - bob, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawScorpionFallback(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, wc: number) {
+  const bob = bodyBob(wc) * 0.5;
+  // Tail stinger
+  const tailSwing = Math.sin(wc * Math.PI * 2) * 0.2;
+  ctx.strokeStyle = '#F9A825'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x, y - bob);
+  ctx.quadraticCurveTo(x + size * 1.2, y - size * 1.2 - bob + tailSwing * 10, x + size * 0.6, y - size * 1.8 - bob);
+  ctx.stroke();
+  // Stinger tip
+  ctx.fillStyle = '#F57F17';
+  ctx.beginPath(); ctx.arc(x + size * 0.6, y - size * 1.8 - bob, 4, 0, Math.PI * 2); ctx.fill();
+  // Legs
+  ctx.strokeStyle = '#6D4C41'; ctx.lineWidth = 2;
+  for (let i = 0; i < 4; i++) {
+    const lx = x - size * 0.6 + i * size * 0.4;
+    const lo = legOffset(wc, i % 2 === 0 ? 'left' : 'right');
+    ctx.beginPath(); ctx.moveTo(lx, y + size * 0.3 - bob); ctx.lineTo(lx - size * 0.3, y + size * 0.8 + lo - bob); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lx, y + size * 0.3 - bob); ctx.lineTo(lx + size * 0.3, y + size * 0.8 - lo - bob); ctx.stroke();
+  }
+  // Body segments
+  const bodyGrad = ctx.createLinearGradient(x - size, y - bob, x + size, y - bob);
+  bodyGrad.addColorStop(0, '#F9A825');
+  bodyGrad.addColorStop(1, '#E65100');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath(); ctx.ellipse(x, y - bob, size * 0.85, size * 0.65, 0, 0, Math.PI * 2); ctx.fill();
+  // Head with pincers
+  ctx.fillStyle = '#F57F17';
+  ctx.beginPath(); ctx.arc(x, y - size * 0.75 - bob, size * 0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#BF360C';
+  // Pincers
+  ctx.beginPath(); ctx.ellipse(x - size * 0.75, y - size * 0.6 - bob, size * 0.35, size * 0.2, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + size * 0.75, y - size * 0.6 - bob, size * 0.35, size * 0.2, 0.4, 0, Math.PI * 2); ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(x - 3, y - size * 0.85 - bob, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 3, y - size * 0.85 - bob, 2, 0, Math.PI * 2); ctx.fill();
+}
+
+// ============================================================
 // ALLIED UNITS DRAWING
 // ============================================================
 
@@ -1318,7 +1601,7 @@ function drawAlliedUnit(ctx: CanvasRenderingContext2D, unit: AlliedUnit) {
 
   switch (type) {
     case 'soldier':  drawSoldierUnit(ctx, x, y, walkCycle || 0); break;
-    case 'hero':     drawHeroUnit(ctx, x, y, walkCycle || 0); break;
+    case 'hero':     drawHeroUnitWithSprite(ctx, x, y, walkCycle || 0); break;
     case 'wolf':     drawWolfUnit(ctx, x, y, walkCycle || 0); break;
     case 'golem':    drawGolemUnit(ctx, x, y, walkCycle || 0); break;
     case 'skeleton': drawSkeletonUnit(ctx, x, y, walkCycle || 0); break;
@@ -1358,6 +1641,20 @@ function drawSoldierUnit(ctx: CanvasRenderingContext2D, x: number, y: number, wc
   ctx.beginPath(); ctx.arc(x, y - 12 - bob, 7, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#1565C0';
   ctx.beginPath(); ctx.arc(x, y - 14 - bob, 7, Math.PI, 0); ctx.fill();
+}
+
+function drawHeroUnitWithSprite(ctx: CanvasRenderingContext2D, x: number, y: number, wc: number) {
+  const bob = bodyBob(wc);
+  const heroImg = getCharacterSprite('knight_hero');
+  if (heroImg) {
+    // 188x205 — scale to unit size (~28px tall)
+    const scale = 48 / 205;
+    const dw = 188 * scale;
+    const dh = 205 * scale;
+    ctx.drawImage(heroImg, x - dw / 2, y - dh / 2 - bob, dw, dh);
+  } else {
+    drawHeroUnit(ctx, x, y, wc);
+  }
 }
 
 function drawHeroUnit(ctx: CanvasRenderingContext2D, x: number, y: number, wc: number) {

@@ -141,12 +141,12 @@ export default function Home() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0d0702",
+          background: "#0a1a1a",
         }}
       >
         <div
           style={{
-            color: "#fbbf24",
+            color: "#4dd0e1",
             fontSize: "1.25rem",
             fontFamily: "'Uncial Antiqua', serif",
           }}
@@ -175,7 +175,7 @@ export default function Home() {
         width: "100vw",
         height: "100vh",
         overflow: "hidden",
-        background: "#0d0702",
+        background: "#0a1a1a",
         display: "flex",
         flexDirection: "column",
       }}
@@ -231,15 +231,15 @@ export default function Home() {
           alignItems: "center",
           justifyContent: "space-between",
           fontSize: "10px",
-          background: "linear-gradient(90deg, #1a0f04, #2d1a08, #1a0f04)",
-          borderTop: "1px solid #3d2010",
+          background: "linear-gradient(90deg, #0a1a1a, #1a3a3a, #0a1a1a)",
+          borderTop: "1px solid #2a5a5a",
           flexShrink: 0,
         }}
       >
-        <span style={{ color: "#92400e", fontFamily: "'Philosopher', serif" }}>
+        <span style={{ color: "#4a8a8a", fontFamily: "'Philosopher', serif" }}>
           ESC: Deselect · Space/P: Pause · 1-9: Select Tower
         </span>
-        <span style={{ color: "#78350f", fontFamily: "'Philosopher', serif" }}>
+        <span style={{ color: "#3a6a6a", fontFamily: "'Philosopher', serif" }}>
           Fantasy Tower Defense
         </span>
       </div>

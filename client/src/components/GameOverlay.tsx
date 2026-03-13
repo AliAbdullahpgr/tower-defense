@@ -84,7 +84,7 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 20,
-        background: 'radial-gradient(ellipse at center, rgba(20,60,15,0.92) 0%, rgba(0,0,0,0.88) 100%)',
+        background: 'radial-gradient(ellipse at center, rgba(0,60,60,0.92) 0%, rgba(0,20,20,0.88) 100%)',
         padding: '20px',
       }}
     >
@@ -94,20 +94,20 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
         transition={{ type: 'spring', duration: 0.8 }}
         style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}
       >
-        <div style={{ fontSize: '56px', marginBottom: '8px' }}>🏆</div>
+        <div style={{ fontSize: '56px', marginBottom: '8px', color: '#FFD700', fontFamily: 'serif' }}>Victory</div>
         <h1
           style={{
             fontFamily: "'Uncial Antiqua', serif",
             fontSize: '40px',
             fontWeight: 'bold',
-            color: '#fde68a',
+            color: '#4dd0e1',
             marginBottom: '6px',
-            textShadow: '0 0 30px rgba(255,215,0,0.5)',
+            textShadow: '0 0 30px rgba(77,208,225,0.5)',
           }}
         >
           Victory!
         </h1>
-        <p style={{ color: '#86efac', fontSize: '14px', marginBottom: '20px', fontFamily: "'Philosopher', serif" }}>
+        <p style={{ color: '#a7f3d0', fontSize: '14px', marginBottom: '20px', fontFamily: "'Philosopher', serif" }}>
           The realm is saved! All {stats.totalWaves} waves defeated!
         </p>
 
@@ -119,12 +119,12 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
             marginBottom: '20px',
           }}
         >
-          <StatCard icon="⭐" label="Final Score" value={stats.score.toLocaleString()} color="#fde68a" />
-          <StatCard icon="💰" label="Gold Remaining" value={`${stats.gold}g`} color="#fbbf24" />
-          <StatCard icon="⚔" label="Enemies Slain" value={stats.enemiesKilled} color="#86efac" />
-          <StatCard icon="🏰" label="Towers Built" value={stats.towersPlaced} color="#93c5fd" />
-          <StatCard icon="💥" label="Damage Dealt" value={stats.damageDealt.toLocaleString()} color="#fca5a5" />
-          <StatCard icon="🌊" label="Waves Survived" value={stats.wavesSurvived} color="#c4b5fd" />
+          <StatCard icon="" label="Final Score" value={stats.score.toLocaleString()} color="#a7f3d0" />
+          <StatCard icon="" label="Gold Remaining" value={`${stats.gold}g`} color="#4dd0e1" />
+          <StatCard icon="" label="Enemies Slain" value={stats.enemiesKilled} color="#86efac" />
+          <StatCard icon="" label="Towers Built" value={stats.towersPlaced} color="#93c5fd" />
+          <StatCard icon="" label="Damage Dealt" value={stats.damageDealt.toLocaleString()} color="#fca5a5" />
+          <StatCard icon="" label="Waves Survived" value={stats.wavesSurvived} color="#c4b5fd" />
         </div>
 
         {/* High score save */}
@@ -140,9 +140,9 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
               style={{
                 padding: '6px 12px',
                 borderRadius: '6px',
-                border: '1px solid #78350f',
-                background: 'rgba(45,26,8,0.8)',
-                color: '#fde68a',
+                border: '1px solid #2a6a6a',
+                background: 'rgba(10,40,40,0.8)',
+                color: '#a7f3d0',
                 fontSize: '12px',
                 fontFamily: "'Philosopher', serif",
                 outline: 'none',
@@ -154,9 +154,9 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
               style={{
                 padding: '6px 14px',
                 borderRadius: '6px',
-                border: '1px solid #FFD700',
-                background: name.trim() ? 'rgba(120,80,0,0.6)' : 'rgba(45,26,8,0.4)',
-                color: name.trim() ? '#fbbf24' : '#78350f',
+                border: '1px solid #4dd0e1',
+                background: name.trim() ? 'rgba(0,100,100,0.6)' : 'rgba(10,40,40,0.4)',
+                color: name.trim() ? '#4dd0e1' : '#2a6a6a',
                 fontSize: '11px',
                 cursor: name.trim() ? 'pointer' : 'not-allowed',
                 fontFamily: "'Philosopher', serif",
@@ -167,7 +167,7 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
           </div>
         ) : (
           <div style={{ color: '#86efac', fontSize: '12px', marginBottom: '16px' }}>
-            ✓ Score saved to Hall of Fame!
+            Score saved to Hall of Fame!
           </div>
         )}
 
@@ -180,16 +180,16 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
               padding: '12px 36px',
               fontSize: '16px',
               fontWeight: 'bold',
-              color: '#fde68a',
+              color: '#a7f3d0',
               borderRadius: '10px',
-              border: '2px solid #fbbf24',
-              background: 'linear-gradient(135deg, #78350f, #b45309)',
+              border: '2px solid #4dd0e1',
+              background: 'linear-gradient(135deg, #0d5c5c, #0e7490)',
               cursor: 'pointer',
               fontFamily: "'Uncial Antiqua', serif",
-              boxShadow: '0 0 20px rgba(251,191,36,0.3)',
+              boxShadow: '0 0 20px rgba(77,208,225,0.3)',
             }}
           >
-            ⚔ Play Again
+            Play Again
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -199,10 +199,10 @@ function VictoryScreen({ state, onRestart, onReturnToMenu }: { state: GameEngine
               padding: '12px 28px',
               fontSize: '14px',
               fontWeight: 'bold',
-              color: '#d97706',
+              color: '#4dd0e1',
               borderRadius: '10px',
-              border: '2px solid #78350f',
-              background: 'rgba(45,26,8,0.8)',
+              border: '2px solid #2a6a6a',
+              background: 'rgba(10,40,40,0.8)',
               cursor: 'pointer',
               fontFamily: "'Philosopher', serif",
             }}
@@ -246,7 +246,7 @@ function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineS
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 20,
-        background: 'radial-gradient(ellipse at center, rgba(60,10,10,0.92) 0%, rgba(0,0,0,0.9) 100%)',
+        background: 'radial-gradient(ellipse at center, rgba(60,20,20,0.92) 0%, rgba(20,5,5,0.9) 100%)',
         padding: '20px',
       }}
     >
@@ -256,13 +256,13 @@ function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineS
         transition={{ type: 'spring', duration: 0.8 }}
         style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}
       >
-        <div style={{ fontSize: '56px', marginBottom: '8px' }}>💀</div>
+        <div style={{ fontSize: '56px', marginBottom: '8px', color: '#f87171', fontFamily: 'serif' }}>Defeat</div>
         <h1
           style={{
             fontFamily: "'Uncial Antiqua', serif",
             fontSize: '40px',
             fontWeight: 'bold',
-            color: '#fca5a5',
+            color: '#f87171',
             marginBottom: '6px',
             textShadow: '0 0 30px rgba(239,68,68,0.5)',
           }}
@@ -281,12 +281,12 @@ function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineS
             marginBottom: '20px',
           }}
         >
-          <StatCard icon="🌊" label="Wave Reached" value={`${stats.wave} / ${stats.totalWaves}`} color="#fca5a5" />
-          <StatCard icon="⭐" label="Score" value={stats.score.toLocaleString()} color="#fde68a" />
-          <StatCard icon="⚔" label="Enemies Slain" value={stats.enemiesKilled} color="#fdba74" />
-          <StatCard icon="🏰" label="Towers Built" value={stats.towersPlaced} color="#93c5fd" />
-          <StatCard icon="💥" label="Damage Dealt" value={stats.damageDealt.toLocaleString()} color="#fca5a5" />
-          <StatCard icon="💰" label="Gold Earned" value={`${stats.goldEarned}g`} color="#fbbf24" />
+          <StatCard icon="" label="Wave Reached" value={`${stats.wave} / ${stats.totalWaves}`} color="#fca5a5" />
+          <StatCard icon="" label="Score" value={stats.score.toLocaleString()} color="#a7f3d0" />
+          <StatCard icon="" label="Enemies Slain" value={stats.enemiesKilled} color="#fdba74" />
+          <StatCard icon="" label="Towers Built" value={stats.towersPlaced} color="#93c5fd" />
+          <StatCard icon="" label="Damage Dealt" value={stats.damageDealt.toLocaleString()} color="#fca5a5" />
+          <StatCard icon="" label="Gold Earned" value={`${stats.goldEarned}g`} color="#4dd0e1" />
         </div>
 
         {/* High score save */}
@@ -302,9 +302,9 @@ function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineS
               style={{
                 padding: '6px 12px',
                 borderRadius: '6px',
-                border: '1px solid #78350f',
-                background: 'rgba(45,26,8,0.8)',
-                color: '#fde68a',
+                border: '1px solid #6a2a2a',
+                background: 'rgba(40,20,20,0.8)',
+                color: '#a7f3d0',
                 fontSize: '12px',
                 fontFamily: "'Philosopher', serif",
                 outline: 'none',
@@ -317,8 +317,8 @@ function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineS
                 padding: '6px 14px',
                 borderRadius: '6px',
                 border: '1px solid #ef4444',
-                background: name.trim() ? 'rgba(120,20,20,0.6)' : 'rgba(45,26,8,0.4)',
-                color: name.trim() ? '#fca5a5' : '#78350f',
+                background: name.trim() ? 'rgba(100,20,20,0.6)' : 'rgba(40,20,20,0.4)',
+                color: name.trim() ? '#fca5a5' : '#6a2a2a',
                 fontSize: '11px',
                 cursor: name.trim() ? 'pointer' : 'not-allowed',
                 fontFamily: "'Philosopher', serif",
@@ -329,7 +329,7 @@ function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineS
           </div>
         ) : (
           <div style={{ color: '#86efac', fontSize: '12px', marginBottom: '16px' }}>
-            ✓ Score saved to Hall of Fame!
+            Score saved to Hall of Fame!
           </div>
         )}
 
@@ -345,13 +345,13 @@ function DefeatScreen({ state, onRestart, onReturnToMenu }: { state: GameEngineS
               color: '#fca5a5',
               borderRadius: '10px',
               border: '2px solid #ef4444',
-              background: 'linear-gradient(135deg, #7f1d1d, #450a0a)',
+              background: 'linear-gradient(135deg, #6a1a1a, #8a2a2a)',
               cursor: 'pointer',
               fontFamily: "'Uncial Antiqua', serif",
               boxShadow: '0 0 20px rgba(239,68,68,0.3)',
             }}
           >
-            🔄 Try Again
+            Try Again
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -416,7 +416,7 @@ function PauseScreen({ onResume, onReturnToMenu, onOpenSettings }: { onResume: (
             marginBottom: '20px',
           }}
         >
-          ⏸ Paused
+          Paused
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '200px' }}>
@@ -436,7 +436,7 @@ function PauseScreen({ onResume, onReturnToMenu, onOpenSettings }: { onResume: (
               fontFamily: "'Philosopher', serif",
             }}
           >
-            ▶ Resume
+            Resume
           </motion.button>
 
           {onOpenSettings && (
@@ -456,7 +456,7 @@ function PauseScreen({ onResume, onReturnToMenu, onOpenSettings }: { onResume: (
                 fontFamily: "'Philosopher', serif",
               }}
             >
-              ⚙ Settings
+              Settings
             </motion.button>
           )}
 
@@ -476,7 +476,7 @@ function PauseScreen({ onResume, onReturnToMenu, onOpenSettings }: { onResume: (
               fontFamily: "'Philosopher', serif",
             }}
           >
-            ✕ Quit to Menu
+            Quit to Menu
           </motion.button>
         </div>
 
